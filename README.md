@@ -20,7 +20,7 @@ Sem configuração do Supabase, o catálogo mostra o estado vazio e a área de g
 
 O projeto Supabase `Davi Vera Linkbio` já está conectado. A tabela `properties`, o bucket `property-photos` e as políticas de Row Level Security foram criados. A conta administradora autorizada é a do UUID `d4f4490d-96f2-406b-bced-6f0a27d31116`; novos cadastros públicos estão desativados.
 
-1. Abra o convite enviado ao e-mail administrador, confirme o endereço e defina uma senha no Supabase.
+1. Abra o convite enviado ao e-mail administrador, confirme o endereço e defina uma senha no Supabase. Para trocar uma senha esquecida, use **Authentication → Users → seu usuário → Send password recovery**; o link abre uma tela do próprio site para cadastrar a nova senha.
 2. Acesse o [site publicado](https://daviveracorretor.github.io/biolink/), abra **Área de gerenciamento** e escolha **Entrar como administrador**.
 3. Informe o e-mail e a senha definidos no convite. O formulário de imóveis aparecerá após a autenticação.
 4. Preencha os dados, selecione as fotos, escolha o status e clique em **Salvar imóvel**. Use **Publicado** para exibir o imóvel no catálogo.

@@ -94,9 +94,54 @@
   function renderPhotoPreview() { $('#photo-preview').innerHTML=state.pendingPhotos.map((p,i)=>`<div><img src="${esc(p.url)}" alt="Foto ${i+1}"><button type="button" class="text-button" data-remove-photo="${i}">Remover</button><button type="button" class="text-button" data-cover-photo="${i}">${p.path===($('#property-form').elements.cover?.value||state.pendingPhotos[0]?.path)?'Capa':'Usar capa'}</button></div>`).join(''); $$('[data-remove-photo]').forEach(b=>b.onclick=()=>{state.pendingPhotos.splice(Number(b.dataset.removePhoto),1);renderPhotoPreview();});$$('[data-cover-photo]').forEach(b=>b.onclick=()=>{const chosen=state.pendingPhotos.splice(Number(b.dataset.coverPhoto),1)[0];state.pendingPhotos.unshift(chosen);renderPhotoPreview();}); }
   async function uploadPhotos(files, propertyId) { for(const file of files) { const path=`${propertyId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`; const r=await fetch(`${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/${config.supabase.bucket}/${path}`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`,'Content-Type':file.type,'x-upsert':'true'},body:file}); if(!r.ok)throw Error(`Falha ao enviar ${file.name}: ${await r.text()}`);state.pendingPhotos.push({path,url:mediaUrl(path)}); } state.pendingPhotos=state.pendingPhotos.filter(p=>!p.path.startsWith('local-')); }
   async function saveProperty(event) { event.preventDefault(); const f=event.currentTarget;const fd=new FormData(f);const id=fd.get('id')||crypto.randomUUID();try{await uploadPhotos(fd.getAll('photos').filter(x=>x.size),id);const payload={title:fd.get('title'),description:fd.get('description'),category:fd.get('category'),region:fd.get('region'),price:Number(fd.get('price'))||null,area:Number(fd.get('area'))||null,bedrooms:Number(fd.get('bedrooms'))||null,suites:Number(fd.get('suites'))||null,bathrooms:Number(fd.get('bathrooms'))||null,parking:Number(fd.get('parking'))||null,features:String(fd.get('features')).split(',').map(x=>x.trim()).filter(Boolean),payment:fd.get('payment'),code:fd.get('code'),status:fd.get('status'),featured:fd.get('featured')==='on',photos:state.pendingPhotos,cover:state.pendingPhotos[0]?.path||null};if(fd.get('id'))await api(`${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify(payload)});else await api(encodeURIComponent(config.supabase.table),{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({id,...payload})});setAdminStatus(`“${payload.title}” salvo como ${payload.status}.`);f.reset();state.pendingPhotos=[];renderPhotoPreview();await loadCatalog();}catch(e){setAdminStatus(`Não foi possível salvar o imóvel. Confira as permissões RLS e Storage. ${e.message}`,true);} }
+  function setupPasswordRecovery() {
+    const params = new URLSearchParams([location.search.slice(1), location.hash.slice(1)].filter(Boolean).join('&'));
+    const recoveryType = params.get('type');
+    let accessToken = params.get('access_token');
+    const recoveryError = params.get('error_description') || params.get('error_code');
+    if (recoveryType !== 'recovery' && !recoveryError) return;
+
+    const cleanQuery = new URLSearchParams(location.search);
+    ['access_token','refresh_token','code','type','error','error_code','error_description','expires_in','token_type'].forEach(key => cleanQuery.delete(key));
+    history.replaceState(null, '', `${location.pathname}${cleanQuery.size ? `?${cleanQuery}` : ''}`);
+
+    const dialog = $('#password-reset-dialog');
+    const form = $('#password-reset-form');
+    const status = $('#password-reset-status');
+    const submit = $('#password-reset-submit');
+    dialog.addEventListener('cancel', event => event.preventDefault());
+    if (!accessToken || recoveryType !== 'recovery') {
+      status.textContent = recoveryError || 'Este link expirou ou já foi usado. Peça um novo e-mail em Supabase → Authentication → Users → seu usuário → Send password recovery.';
+      submit.disabled = true;
+    }
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const data = new FormData(form);
+      const password = String(data.get('password') || '');
+      if (password !== data.get('passwordConfirm')) { status.textContent = 'As senhas não coincidem.'; return; }
+      submit.disabled = true;
+      status.textContent = 'Salvando sua nova senha…';
+      try {
+        const response = await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/user`, {
+          method: 'PUT',
+          headers: { apikey: config.supabase.anonKey, Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        if (!response.ok) throw new Error((await response.text()).slice(0, 250));
+        accessToken = null;
+        form.hidden = true;
+        $('#password-reset-success').hidden = false;
+        $('#password-reset-close').onclick = () => dialog.close();
+      } catch (error) {
+        status.textContent = `Não foi possível atualizar a senha. ${error.message}`;
+        submit.disabled = false;
+      }
+    });
+    dialog.showModal();
+  }
   function setupAdmin() { $('#admin-login').onclick=login;$('#admin-logout').onclick=async()=>{try{await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`}});}catch{}state.user=null;$('#property-form').hidden=true;await loadCatalog();};$('#property-form').addEventListener('submit',saveProperty);$('#property-form').elements.photos.addEventListener('change',e=>{for(const f of e.target.files){const url=URL.createObjectURL(f);state.pendingPhotos.push({path:`local-${Date.now()}-${f.name}`,url});}renderPhotoPreview();});$('#property-form').addEventListener('reset',()=>{state.pendingPhotos=[];setTimeout(renderPhotoPreview);});$('#preview-property').onclick=()=>{const f=$('#property-form');const fd=new FormData(f);const temp={id:'preview',title:fd.get('title')||'Pré-visualização',description:fd.get('description'),category:fd.get('category'),region:fd.get('region'),price:fd.get('price'),status:'published',photos:state.pendingPhotos,featured:fd.get('featured')==='on',bedrooms:fd.get('bedrooms'),area:fd.get('area'),features:String(fd.get('features')).split(',').filter(Boolean),payment:fd.get('payment')};state.properties.unshift(temp);openProperty('preview');state.properties.shift();}; }
   function init() {
-    initTheme();setupProfile();renderCategories();
+    initTheme();setupProfile();renderCategories();setupPasswordRecovery();
     $('#filter-toggle').onclick=()=>{const panel=$('#filters-panel');panel.hidden=!panel.hidden;$('#filter-toggle').setAttribute('aria-expanded',String(!panel.hidden));};
     ['search-input','region-filter','price-filter','rooms-filter'].forEach(id=>document.getElementById(id).addEventListener('input',renderProperties));
     $('#clear-filters').onclick=()=>{$('#search-input').value='';$('#region-filter').value='';$('#price-filter').value='';$('#rooms-filter').value='';state.category='Todos';renderCategories();renderProperties();};

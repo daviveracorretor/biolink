@@ -11,9 +11,9 @@
   <title>Davi Vera | Imóveis em Cascavel</title>
   <link rel="preconnect" href="https://api.fontshare.com">
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700,800,900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
   <script src="config.js?v=4"></script>
-  <script src="script.js?v=2" defer></script>
+  <script src="script.js?v=3" defer></script>
 </head>
 <body>
   <div class="page-shell">
@@ -57,5 +57,22 @@
   </div>
   <dialog id="property-modal" class="property-modal"><button class="modal-close" aria-label="Fechar">×</button><div id="modal-content"></div></dialog>
   <dialog id="image-modal" class="image-modal"><button class="modal-close" aria-label="Fechar">×</button><button class="gallery-arrow gallery-prev" aria-label="Foto anterior">‹</button><img id="large-image" alt="Foto ampliada do imóvel"><button class="gallery-arrow gallery-next" aria-label="Próxima foto">›</button><span id="gallery-count"></span></dialog>
+  <dialog id="password-reset-dialog" class="recovery-modal" aria-labelledby="password-reset-title">
+    <form id="password-reset-form" class="recovery-form">
+      <p class="eyebrow">ACESSO DO ADMINISTRADOR</p>
+      <h2 id="password-reset-title">Crie uma nova senha</h2>
+      <p>Defina uma senha para entrar na área de gerenciamento dos imóveis.</p>
+      <label>Nova senha<input name="password" type="password" autocomplete="new-password" minlength="8" required></label>
+      <label>Confirme a nova senha<input name="passwordConfirm" type="password" autocomplete="new-password" minlength="8" required></label>
+      <p id="password-reset-status" class="admin-status" role="status" aria-live="polite"></p>
+      <button id="password-reset-submit" class="button button-primary" type="submit">Salvar nova senha</button>
+    </form>
+    <div id="password-reset-success" hidden>
+      <p class="eyebrow">PRONTO</p>
+      <h2>Senha atualizada</h2>
+      <p>Agora feche esta janela e entre como administrador com sua nova senha.</p>
+      <button id="password-reset-close" class="button button-primary" type="button">Fechar</button>
+    </div>
+  </dialog>
 </body>
 </html>
