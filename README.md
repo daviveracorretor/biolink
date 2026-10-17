@@ -18,11 +18,14 @@ Os textos, categorias, chamada de simulação, URL e visibilidade dessa chamada 
 
 Sem configuração do Supabase, o catálogo mostra o estado vazio e a área de gerenciamento explica o que falta. O catálogo usa `localStorage` apenas para a preferência visual; imóveis nunca são tratados como dados locais persistentes.
 
-1. Crie um projeto Supabase e um usuário para você em **Authentication → Users**. Desative novos cadastros públicos em **Authentication → Settings**, pois só você deve ter acesso administrativo.
-2. Copie o UUID do seu usuário. No arquivo `supabase/setup.sql`, substitua todas as ocorrências de `OWNER_AUTH_USER_UUID` pelo UUID real e execute o SQL Editor do Supabase.
-3. Em `config.js`, preencha `url`, `anonKey` (chave pública/publishable) e `adminUserId` com o mesmo UUID. Mantenha `table` como `properties` e `bucket` como `property-photos`, ou ajuste ambos no SQL também.
-4. Publique a alteração de `config.js`. O UUID é um identificador público, não uma credencial; nunca coloque `service_role`, senhas ou chaves privilegiadas no repositório.
-5. Entre em **Área de gerenciamento** no site. O formulário só aparece após Supabase Auth confirmar o UUID autorizado. A proteção real também é aplicada por Row Level Security: visitantes leem anúncios públicos, mas somente o UUID indicado no SQL pode criar, editar, excluir anúncios ou enviar/remover fotos.
+O projeto Supabase `Davi Vera Linkbio` já está conectado. A tabela `properties`, o bucket `property-photos` e as políticas de Row Level Security foram criados. A conta administradora autorizada é a do UUID `d4f4490d-96f2-406b-bced-6f0a27d31116`; novos cadastros públicos estão desativados.
+
+1. Abra o convite enviado ao e-mail administrador, confirme o endereço e defina uma senha no Supabase.
+2. Acesse o [site publicado](https://daviveracorretor.github.io/biolink/), abra **Área de gerenciamento** e escolha **Entrar como administrador**.
+3. Informe o e-mail e a senha definidos no convite. O formulário de imóveis aparecerá após a autenticação.
+4. Preencha os dados, selecione as fotos, escolha o status e clique em **Salvar imóvel**. Use **Publicado** para exibir o imóvel no catálogo.
+
+O UUID é um identificador público, não uma credencial. A chave `anonKey` em `config.js` é a chave publishable, segura para uso no navegador porque as políticas RLS limitam inserção, edição, exclusão e upload ao UUID do administrador. Nunca coloque `service_role`, senhas ou chaves secretas no repositório. Para reconstruir este backend, execute `supabase/setup.sql` no SQL Editor e mantenha o UUID alinhado ao `adminUserId` em `config.js`.
 
 O painel suporta rascunho, publicação, reserva, venda, edição, exclusão confirmada, múltiplas fotos e escolha da capa (a primeira foto é a capa). A pré-visualização permite revisar antes de salvar. Essa configuração autoriza um único usuário. Para trocar o administrador, substitua o UUID nas políticas do SQL e em `config.js`.
 
