@@ -84,7 +84,15 @@
   }
   function showLarge(index) { if (!state.gallery.length) return; state.galleryIndex = (index + state.gallery.length) % state.gallery.length; $('#large-image').src = state.gallery[state.galleryIndex]; $('#gallery-count').textContent = `${state.galleryIndex+1} / ${state.gallery.length}`; $('#image-modal').showModal(); }
   function authHeaders() { return {'apikey':config.supabase.anonKey, 'Authorization':`Bearer ${state.user?.access_token || config.supabase.anonKey}`, 'Content-Type':'application/json'}; }
-  async function api(path, options={}) { const r=await fetch(`${config.supabase.url.replace(/\/$/,'')}/rest/v1/${path}`,{...options,headers:{...authHeaders(),...(options.headers||{})}}); if(!r.ok) throw new Error((await r.text()).slice(0,350)); return r.status===204 ? null : r.json(); }
+  async function api(path, options={}) {
+    const response = await fetch(`${config.supabase.url.replace(/\/$/,'')}/rest/v1/${path}`, { ...options, headers: { ...authHeaders(), ...(options.headers || {}) } });
+    const body = await response.text();
+    if (!response.ok) throw new Error(`Supabase (${response.status}): ${(body || response.statusText).slice(0,350)}`);
+    // PostgREST returns an empty body for Prefer: return=minimal (commonly HTTP 201 on insert).
+    if (!body.trim()) return null;
+    try { return JSON.parse(body); }
+    catch { throw new Error('Supabase retornou uma resposta inválida ao salvar o imóvel.'); }
+  }
   function setAdminStatus(text, error=false) { const e=$('#admin-status'); e.textContent=text; e.style.color=error?'#b2483c':''; }
   function mediaUrl(path) { return `${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/public/${config.supabase.bucket}/${path}`; }
   async function loadCatalog() {
@@ -104,7 +112,40 @@
   function fillForm(p) { const f=$('#property-form'); f.reset(); f.elements.id.value=p.id; ['title','description','category','region','price','area','bedrooms','suites','bathrooms','parking','payment','code','status'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); f.elements.features.value=Array.isArray(p.features)?p.features.join(', '):p.features||'';f.elements.featured.checked=!!p.featured;state.pendingPhotos=p.photos||[];renderPhotoPreview();f.scrollIntoView({behavior:'smooth',block:'start'}); }
   function renderPhotoPreview() { $('#photo-preview').innerHTML=state.pendingPhotos.map((p,i)=>`<div><img src="${esc(p.url)}" alt="Foto ${i+1}"><button type="button" class="text-button" data-remove-photo="${i}">Remover</button><button type="button" class="text-button" data-cover-photo="${i}">${p.path===($('#property-form').elements.cover?.value||state.pendingPhotos[0]?.path)?'Capa':'Usar capa'}</button></div>`).join(''); $$('[data-remove-photo]').forEach(b=>b.onclick=()=>{state.pendingPhotos.splice(Number(b.dataset.removePhoto),1);renderPhotoPreview();});$$('[data-cover-photo]').forEach(b=>b.onclick=()=>{const chosen=state.pendingPhotos.splice(Number(b.dataset.coverPhoto),1)[0];state.pendingPhotos.unshift(chosen);renderPhotoPreview();}); }
   async function uploadPhotos(files, propertyId) { for(const file of files) { const path=`${propertyId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`; const r=await fetch(`${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/${config.supabase.bucket}/${path}`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`,'Content-Type':file.type,'x-upsert':'true'},body:file}); if(!r.ok)throw Error(`Falha ao enviar ${file.name}: ${await r.text()}`);state.pendingPhotos.push({path,url:mediaUrl(path)}); } state.pendingPhotos=state.pendingPhotos.filter(p=>!p.path.startsWith('local-')); }
-  async function saveProperty(event) { event.preventDefault(); const f=event.currentTarget;const fd=new FormData(f);const id=fd.get('id')||crypto.randomUUID();try{await uploadPhotos(fd.getAll('photos').filter(x=>x.size),id);const payload={title:fd.get('title'),description:fd.get('description'),category:fd.get('category'),region:fd.get('region'),price:Number(fd.get('price'))||null,area:Number(fd.get('area'))||null,bedrooms:Number(fd.get('bedrooms'))||null,suites:Number(fd.get('suites'))||null,bathrooms:Number(fd.get('bathrooms'))||null,parking:Number(fd.get('parking'))||null,features:String(fd.get('features')).split(',').map(x=>x.trim()).filter(Boolean),payment:fd.get('payment'),code:fd.get('code'),status:fd.get('status'),featured:fd.get('featured')==='on',photos:state.pendingPhotos,cover:state.pendingPhotos[0]?.path||null};if(fd.get('id'))await api(`${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify(payload)});else await api(encodeURIComponent(config.supabase.table),{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({id,...payload})});setAdminStatus(`“${payload.title}” salvo como ${payload.status}.`);f.reset();state.pendingPhotos=[];renderPhotoPreview();await loadCatalog();}catch(e){setAdminStatus(`Não foi possível salvar o imóvel. Confira as permissões RLS e Storage. ${e.message}`,true);} }
+  async function saveProperty(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const submit = form.querySelector('button[type="submit"]');
+    const formData = new FormData(form);
+    const id = formData.get('id') || crypto.randomUUID();
+    submit.disabled = true;
+    submit.textContent = 'Salvando…';
+    try {
+      await uploadPhotos(formData.getAll('photos').filter(file => file.size), id);
+      const payload = {
+        title: formData.get('title'), description: formData.get('description'), category: formData.get('category'), region: formData.get('region'),
+        price: Number(formData.get('price')) || null, area: Number(formData.get('area')) || null,
+        bedrooms: Number(formData.get('bedrooms')) || null, suites: Number(formData.get('suites')) || null,
+        bathrooms: Number(formData.get('bathrooms')) || null, parking: Number(formData.get('parking')) || null,
+        features: String(formData.get('features')).split(',').map(value => value.trim()).filter(Boolean),
+        payment: formData.get('payment'), code: formData.get('code'), status: formData.get('status'),
+        featured: formData.get('featured') === 'on', photos: state.pendingPhotos, cover: state.pendingPhotos[0]?.path || null
+      };
+      if (formData.get('id')) {
+        await api(`${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(id)}`, { method:'PATCH', headers:{Prefer:'return=minimal'}, body:JSON.stringify(payload) });
+      } else {
+        await api(encodeURIComponent(config.supabase.table), { method:'POST', headers:{Prefer:'return=minimal'}, body:JSON.stringify({id,...payload}) });
+      }
+      setAdminStatus(`“${payload.title}” salvo como ${payload.status}.`);
+      form.reset(); state.pendingPhotos = []; renderPhotoPreview();
+      await loadCatalog();
+    } catch (error) {
+      setAdminStatus(`Não foi possível salvar o imóvel. ${error.message}`, true);
+    } finally {
+      submit.disabled = false;
+      submit.textContent = 'Salvar imóvel';
+    }
+  }
   function setupPasswordRecovery() {
     const params = new URLSearchParams([location.search.slice(1), location.hash.slice(1)].filter(Boolean).join('&'));
     const recoveryType = params.get('type');
