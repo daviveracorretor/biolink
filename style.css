@@ -8,7 +8,7 @@
 .recovery-modal{max-width:460px;padding:26px}.recovery-form{display:grid;gap:12px}.recovery-modal h2{font:28px/1.15 var(--sans);margin:0}.recovery-modal p{color:var(--muted);font-size:13px;margin:0}.recovery-form label{display:grid;gap:5px;color:var(--muted);font-size:12px}.recovery-form input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:10px;font-size:14px}
 
 /* Profile and credit card follow the supplied mobile reference. */
-:root{--bg:#edf2f6;--surface:#fff;--surface-2:#e4ebef;--ink:#13212b;--muted:#687985;--accent:#117d79;--accent-dark:#0a625f;--border:#dce4e8;--serif:Georgia,'Times New Roman',serif}
+:root{--bg:#edf2f6;--surface:#fff;--surface-2:#e4ebef;--ink:#13212b;--muted:#687985;--accent:#117d79;--accent-dark:#0a625f;--border:#dce4e8;--sans:'Satoshi','Poppins','Sora',sans-serif;--serif:'TT Hoves','Neulis','Sora','Satoshi',sans-serif}
 [data-theme="dark"]{color-scheme:dark;--bg:#101a20;--surface:#17242c;--surface-2:#22343d;--ink:#edf4f6;--muted:#afbec6;--accent:#53bcb4;--accent-dark:#71d2ca;--border:#32454e;--shadow:0 16px 50px #0005}
 [data-theme="dark"] .profile h1{color:#edf4f6}
 [data-theme="dark"] .bio{color:#afbec6}
@@ -24,9 +24,10 @@
 .avatar{width:104px;height:104px;margin:0 auto;border:3px solid #fff;outline:2px solid #16817e;background:#fff;box-shadow:0 0 0 4px #edf2f6;}
 .avatar img{object-fit:cover;transform:scale(1.45) translateY(5%)}
 .profile h1{font:700 clamp(36px,10vw,40px)/1.08 var(--serif);color:#101d27;letter-spacing:-1px;margin:20px 0 10px}
-.bio{font:400 clamp(16px,4.5vw,18px)/1.55 var(--sans);color:#677681;margin:0 auto;max-width:370px}
+.bio{font:400 clamp(16px,4.5vw,18px)/1.55 'Poppins','Satoshi',sans-serif;color:#677681;margin:0 auto;max-width:370px}
 .social-actions{display:flex;justify-content:center;align-items:center;gap:10px;margin:17px 0 0;padding:0}
 .social-icon{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#fff;border:1px solid #d8e0e5;color:#15232d;transition:transform .18s,box-shadow .18s}
+.button,.category-chip{font-family:'Sora','Poppins','Satoshi',sans-serif}
 .social-icon:hover{transform:translateY(-2px);box-shadow:0 5px 15px #17303a1a}
 .social-icon svg{display:block;width:20px;height:20px;fill:currentColor}
 .category-scroll-hero{margin:27px -16px 18px;padding:3px 16px 4px;gap:8px;scrollbar-width:none}
