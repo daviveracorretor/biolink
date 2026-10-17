@@ -10,7 +10,12 @@
 /* Profile and credit card follow the supplied mobile reference. */
 :root{--bg:#edf2f6;--surface:#fff;--surface-2:#e4ebef;--ink:#13212b;--muted:#687985;--accent:#117d79;--accent-dark:#0a625f;--border:#dce4e8;--serif:Georgia,'Times New Roman',serif}
 .page-shell{width:min(100% - 32px,800px)}
-.topbar{display:none}
+.page-shell{position:relative}
+.topbar{display:flex;position:absolute;top:8px;right:0;z-index:2;width:auto;height:44px;justify-content:flex-end;align-items:center;margin:0}
+.brand-logo{display:grid;width:40px;height:40px;place-items:center;overflow:hidden;border-radius:8px;background:#fff;box-shadow:0 2px 8px #14262d12}
+.brand-logo img{display:block;width:100%;height:100%;object-fit:contain}
+.brand-logo-footer{width:36px;height:36px;box-shadow:none}
+.topbar .theme-toggle{display:none}
 .profile{padding:26px 0 0}
 .avatar{width:104px;height:104px;margin:0 auto;border:3px solid #fff;outline:2px solid #16817e;background:#fff;box-shadow:0 0 0 4px #edf2f6;}
 .avatar img{object-fit:cover;transform:scale(1.45) translateY(5%)}
