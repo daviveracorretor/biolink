@@ -5,7 +5,7 @@ window.SITE_CONFIG = {
   profileImage: "", // Caminho relativo, ex.: assets/davi-vera.jpg
   categories: ["Lançamentos", "Minha Casa Minha Vida", "Apartamentos prontos", "Casas", "Terrenos"],
   spotlight: { visible: true, title: "Seu imóvel começa com uma boa conversa.", description: "Descubra possibilidades de subsídio e financiamento para conquistar seu imóvel.", button: "Fazer simulação" },
-  supabase: { url: "", anonKey: "", table: "properties", bucket: "property-photos" },
+  supabase: { url: "", anonKey: "", adminUserId: "", table: "properties", bucket: "property-photos" },
   // Endpoint opcional de analytics que aceite POST JSON: { event, property_id, timestamp }.
   analyticsEndpoint: ""
 };
