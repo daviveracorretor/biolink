@@ -11,34 +11,40 @@
   <title>Davi Vera | Imóveis em Cascavel</title>
   <link rel="preconnect" href="https://api.fontshare.com">
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700,800,900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=4">
-  <script src="config.js?v=4"></script>
-  <script src="script.js?v=4" defer></script>
+  <link rel="stylesheet" href="style.css?v=5">
+  <script src="config.js?v=5"></script>
+  <script src="script.js?v=5" defer></script>
 </head>
 <body>
   <div class="page-shell">
     <header class="topbar"><a class="wordmark" href="#inicio" aria-label="Davi Vera, início">DV<span>.</span></a><button class="theme-toggle" id="theme-toggle" aria-label="Alternar tema" title="Alternar tema"><span aria-hidden="true">◐</span></button></header>
     <main>
       <section class="profile" id="inicio" aria-labelledby="profile-name">
-        <div class="avatar" id="avatar" aria-label="Foto de Davi Vera"><span>DV</span></div>
-        <p class="eyebrow">IMÓVEIS · CASCAVEL, PR</p>
+        <div class="avatar" id="avatar" aria-label="Foto de Davi Vera"><img src="assets/davi-vera.jpg" alt="Davi Vera" fetchpriority="high"></div>
         <h1 id="profile-name">Davi Vera</h1>
-        <p class="bio">Especialista em Lançamentos e<br class="desktop-break"> Financiamento MCMV em Cascavel.</p>
-        <p class="creci">CRECI F-51897 <span>·</span> Cascavel/PR</p>
-        <div class="social-actions"><a class="button button-primary" id="whatsapp-link" href="#">Falar pelo WhatsApp <span aria-hidden="true">↗</span></a><a class="button button-secondary" id="instagram-link" href="#">Instagram <span aria-hidden="true">↗</span></a></div>
+        <p class="bio">Especialista em Lançamentos e<br class="desktop-break"> Financiamento MCMV em Cascavel</p>
+        <div class="social-actions" aria-label="Redes sociais">
+          <a class="social-icon" id="whatsapp-link" href="#" aria-label="WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.9L.2 24l6.5-1.7a11.8 11.8 0 0 0 5.4 1.3h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.1-1.2-6.1-3.5-8.3ZM12.1 21.6c-1.7 0-3.4-.5-4.8-1.3l-.4-.2-3.9 1 1-3.8-.2-.4a9.8 9.8 0 0 1-1.5-5.2c0-5.4 4.4-9.8 9.8-9.8 2.6 0 5.1 1 6.9 2.9a9.7 9.7 0 0 1 2.9 6.9c0 5.5-4.4 9.9-9.8 9.9Zm5.4-7.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.2-.2.3-.8.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.4.1-.6l.4-.5.3-.5c.1-.2 0-.4 0-.5 0-.1-.7-1.6-1-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.8 1.1 3c.1.2 2 3.1 4.8 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.6-.1 1.7-.7 1.9-1.3.2-.7.2-1.2.2-1.3-.1-.2-.3-.3-.5-.4Z"/></svg></a>
+          <a class="social-icon" id="instagram-link" href="#" aria-label="Instagram"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 2h9.6A5.2 5.2 0 0 1 22 7.2v9.6a5.2 5.2 0 0 1-5.2 5.2H7.2A5.2 5.2 0 0 1 2 16.8V7.2A5.2 5.2 0 0 1 7.2 2Zm0 2A3.2 3.2 0 0 0 4 7.2v9.6A3.2 3.2 0 0 0 7.2 20h9.6a3.2 3.2 0 0 0 3.2-3.2V7.2A3.2 3.2 0 0 0 16.8 4H7.2Zm10.1 1.5a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg></a>
+        </div>
       </section>
 
+      <nav class="category-scroll category-scroll-hero" id="category-filters" aria-label="Filtrar imóveis por categoria"></nav>
+
       <section class="spotlight" id="spotlight" aria-label="Simulação de crédito">
-        <div><p class="eyebrow">SEU PRÓXIMO PASSO</p><h2>Seu imóvel começa<br>com uma boa conversa.</h2><p>Descubra possibilidades de subsídio e financiamento para conquistar seu imóvel.</p></div>
-        <a class="button button-light" id="simulate-link" href="#">Fazer simulação <span aria-hidden="true">↗</span></a>
-        <span class="spotlight-mark" aria-hidden="true">⌂</span>
+        <p class="spotlight-badge">Facilidade</p>
+        <h2>Faça sua Simulação de Crédito</h2>
+        <p class="spotlight-description">Descubra o valor do seu subsídio e parcelas em 2 minutos</p>
+        <p class="spotlight-promise">⏱️ 2 minutos <span aria-hidden="true">|</span> 💰 Sem compromisso</p>
+        <a class="button button-light" id="simulate-link" href="#">Simular no WhatsApp</a>
       </section>
+
+      <p class="creci">CRECI F-51897 <span>·</span> Cascavel/PR</p>
 
       <section class="catalog" id="imoveis" aria-labelledby="catalog-title">
         <div class="section-heading"><div><p class="eyebrow">CURADORIA DAVI VERA</p><h2 id="catalog-title">Imóveis em destaque</h2></div><span class="listing-count" id="listing-count">0 imóveis</span></div>
         <div class="catalog-tools"><label class="search-box"><span aria-hidden="true">⌕</span><input id="search-input" type="search" placeholder="Busque por imóvel ou região" aria-label="Buscar imóvel ou região"></label><button class="filter-toggle" id="filter-toggle" aria-expanded="false">Filtros <span aria-hidden="true">⌄</span></button></div>
         <div class="filters-panel" id="filters-panel" hidden>
-          <div class="category-scroll" id="category-filters" aria-label="Filtrar por categoria"></div>
           <div class="filter-fields"><label>Região<input id="region-filter" type="text" placeholder="Ex.: Centro"></label><label>Preço máximo (R$)<input id="price-filter" type="number" min="0" placeholder="Sem limite"></label><label>Quartos, no mínimo<input id="rooms-filter" type="number" min="0" placeholder="Qualquer"></label><button class="text-button" id="clear-filters">Limpar filtros</button></div>
         </div>
         <div class="property-grid" id="property-grid" aria-live="polite"></div>

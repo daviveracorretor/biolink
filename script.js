@@ -3,7 +3,7 @@
   const config = window.SITE_CONFIG || {};
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
-  const state = { properties: [], category: 'Todos', gallery: [], galleryIndex: 0, pendingPhotos: [], user: null };
+  const state = { properties: [], category: config.categories?.[0] || 'Todos', gallery: [], galleryIndex: 0, pendingPhotos: [], user: null };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const hasSupabase = () => Boolean(config.supabase?.url && config.supabase?.anonKey);
   const wa = (message = 'Olá, Davi! Gostaria de conversar sobre imóveis em Cascavel.') => config.whatsapp ? `https://wa.me/${encodeURIComponent(config.whatsapp)}?text=${encodeURIComponent(message)}` : '#admin';
@@ -27,7 +27,7 @@
       el.href = wa(text); if (!config.whatsapp) el.title = 'Configure o WhatsApp em config.js';
     });
     if (config.spotlight?.visible === false) $('#spotlight').hidden = true;
-    else { $('#spotlight h2').textContent = config.spotlight?.title || $('#spotlight h2').textContent; $('#spotlight p:not(.eyebrow)').textContent = config.spotlight?.description || $('#spotlight p:not(.eyebrow)').textContent; $('#simulate-link').childNodes[0].textContent = `${config.spotlight?.button || 'Fazer simulação'} `; }
+    else { $('#spotlight h2').textContent = config.spotlight?.title || $('#spotlight h2').textContent; $('#spotlight .spotlight-description').textContent = config.spotlight?.description || $('#spotlight .spotlight-description').textContent; $('#simulate-link').textContent = config.spotlight?.button || 'Fazer simulação'; }
     $('#year').textContent = new Date().getFullYear();
   }
   function filteredProperties() {
@@ -43,7 +43,7 @@
   }
   function renderCategories() {
     const host = $('#category-filters');
-    host.innerHTML = ['Todos', ...(config.categories || [])].map(c => `<button class="category-chip ${state.category === c ? 'active':''}" type="button" data-category="${esc(c)}">${esc(c)}</button>`).join('');
+    host.innerHTML = [...(config.categories || []), 'Todos'].map(c => `<button class="category-chip ${state.category === c ? 'active':''}" type="button" data-category="${esc(c)}">${esc(c)}</button>`).join('');
     host.onclick = e => { const b = e.target.closest('[data-category]'); if (b) { state.category = b.dataset.category; renderCategories(); renderProperties(); } };
     const select = $('#property-form select[name="category"]'); if (select) select.innerHTML = (config.categories || []).map(c => `<option>${esc(c)}</option>`).join('');
   }
