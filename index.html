@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#edf2f1">
+  <meta name="description" content="Davi Vera, especialista em lançamentos e financiamento MCMV em Cascavel, Paraná. Encontre seu próximo imóvel.">
+  <meta property="og:title" content="Davi Vera | Imóveis em Cascavel">
+  <meta property="og:description" content="Especialista em Lançamentos e Financiamento MCMV em Cascavel.">
+  <meta property="og:type" content="website">
+  <title>Davi Vera | Imóveis em Cascavel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="config.js"></script>
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar"><a class="wordmark" href="#inicio" aria-label="Davi Vera, início">DV<span>.</span></a><button class="theme-toggle" id="theme-toggle" aria-label="Alternar tema" title="Alternar tema"><span aria-hidden="true">◐</span></button></header>
+    <main>
+      <section class="profile" id="inicio" aria-labelledby="profile-name">
+        <div class="avatar" id="avatar" aria-label="Foto de Davi Vera"><span>DV</span></div>
+        <p class="eyebrow">IMÓVEIS · CASCAVEL, PR</p>
+        <h1 id="profile-name">Davi Vera</h1>
+        <p class="bio">Especialista em Lançamentos e<br class="desktop-break"> Financiamento MCMV em Cascavel.</p>
+        <p class="creci">CRECI F-51897 <span>·</span> Cascavel/PR</p>
+        <div class="social-actions"><a class="button button-primary" id="whatsapp-link" href="#">Falar pelo WhatsApp <span aria-hidden="true">↗</span></a><a class="button button-secondary" id="instagram-link" href="#">Instagram <span aria-hidden="true">↗</span></a></div>
+      </section>
+
+      <section class="spotlight" id="spotlight" aria-label="Simulação de crédito">
+        <div><p class="eyebrow">SEU PRÓXIMO PASSO</p><h2>Seu imóvel começa<br>com uma boa conversa.</h2><p>Descubra possibilidades de subsídio e financiamento para conquistar seu imóvel.</p></div>
+        <a class="button button-light" id="simulate-link" href="#">Fazer simulação <span aria-hidden="true">↗</span></a>
+        <span class="spotlight-mark" aria-hidden="true">⌂</span>
+      </section>
+
+      <section class="catalog" id="imoveis" aria-labelledby="catalog-title">
+        <div class="section-heading"><div><p class="eyebrow">CURADORIA DAVI VERA</p><h2 id="catalog-title">Imóveis em destaque</h2></div><span class="listing-count" id="listing-count">0 imóveis</span></div>
+        <div class="catalog-tools"><label class="search-box"><span aria-hidden="true">⌕</span><input id="search-input" type="search" placeholder="Busque por imóvel ou região" aria-label="Buscar imóvel ou região"></label><button class="filter-toggle" id="filter-toggle" aria-expanded="false">Filtros <span aria-hidden="true">⌄</span></button></div>
+        <div class="filters-panel" id="filters-panel" hidden>
+          <div class="category-scroll" id="category-filters" aria-label="Filtrar por categoria"></div>
+          <div class="filter-fields"><label>Região<input id="region-filter" type="text" placeholder="Ex.: Centro"></label><label>Preço máximo (R$)<input id="price-filter" type="number" min="0" placeholder="Sem limite"></label><label>Quartos, no mínimo<input id="rooms-filter" type="number" min="0" placeholder="Qualquer"></label><button class="text-button" id="clear-filters">Limpar filtros</button></div>
+        </div>
+        <div class="property-grid" id="property-grid" aria-live="polite"></div>
+        <div class="empty-state" id="empty-state"><span class="empty-icon" aria-hidden="true">⌂</span><h3>Seu novo endereço pode estar aqui.</h3><p>Estou selecionando oportunidades em Cascavel. Fale comigo e me conte o que você procura.</p><a id="empty-whatsapp" class="text-link" href="#">Vamos conversar <span aria-hidden="true">↗</span></a></div>
+      </section>
+
+      <section class="contact-grid" aria-label="Atendimento e captação">
+        <article class="contact-card"><p class="eyebrow">PARA QUEM BUSCA</p><h2>Vamos encontrar<br>o lugar certo.</h2><p>Conte o que você procura. Eu ajudo a encontrar as melhores possibilidades para o seu momento.</p><a class="text-link" id="buyer-link" href="#">Conversar sobre um imóvel <span aria-hidden="true">↗</span></a></article>
+        <article class="contact-card contact-card-alt"><p class="eyebrow">PARA PROPRIETÁRIOS</p><h2>Seu imóvel merece<br>ser bem apresentado.</h2><p>Está pensando em vender ou anunciar? Vamos conversar sobre a melhor estratégia.</p><a class="text-link" id="owner-link" href="#">Quero anunciar meu imóvel <span aria-hidden="true">↗</span></a></article>
+      </section>
+
+      <section class="admin-section" id="admin"><details><summary>Área de gerenciamento <span>+</span></summary><div class="admin-content"><p id="admin-status" class="admin-status">Configure a integração para cadastrar e publicar imóveis com segurança.</p><button class="button button-secondary" id="admin-login" hidden>Entrar como administrador</button><button class="text-button" id="admin-logout" hidden>Sair</button><form id="property-form" hidden>
+        <input type="hidden" name="id"><label>Título<input name="title" required maxlength="100"></label><label>Descrição<textarea name="description" rows="4"></textarea></label><div class="form-row"><label>Categoria<select name="category" required></select></label><label>Região<input name="region" required></label><label>Preço (R$)<input name="price" type="number" min="0"></label></div><div class="form-row"><label>Área (m²)<input name="area" type="number" min="0"></label><label>Quartos<input name="bedrooms" type="number" min="0"></label><label>Suítes<input name="suites" type="number" min="0"></label><label>Banheiros<input name="bathrooms" type="number" min="0"></label><label>Vagas<input name="parking" type="number" min="0"></label></div><label>Diferenciais (separe por vírgulas)<input name="features"></label><label>Condições de pagamento<input name="payment"></label><label>Fotos<input name="photos" type="file" accept="image/*" multiple></label><div id="photo-preview" class="photo-preview"></div><div class="form-row"><label>Código<input name="code"></label><label>Status<select name="status"><option value="draft">Rascunho</option><option value="published">Publicado</option><option value="reserved">Reservado</option><option value="sold">Vendido</option></select></label><label><input name="featured" type="checkbox"> Destacar</label></div><div class="admin-actions"><button class="button button-primary" type="submit">Salvar imóvel</button><button class="button button-secondary" type="button" id="preview-property">Pré-visualizar</button><button class="text-button" type="reset">Limpar</button></div></form><div id="admin-list" class="admin-list"></div></div></details></section>
+    </main>
+    <footer><a class="wordmark" href="#inicio">DV<span>.</span></a><p>Imóveis com clareza, cuidado e boas conversas.</p><small>© <span id="year"></span> Davi Vera · CRECI F-51897</small></footer>
+  </div>
+  <dialog id="property-modal" class="property-modal"><button class="modal-close" aria-label="Fechar">×</button><div id="modal-content"></div></dialog>
+  <dialog id="image-modal" class="image-modal"><button class="modal-close" aria-label="Fechar">×</button><button class="gallery-arrow gallery-prev" aria-label="Foto anterior">‹</button><img id="large-image" alt="Foto ampliada do imóvel"><button class="gallery-arrow gallery-next" aria-label="Próxima foto">›</button><span id="gallery-count"></span></dialog>
+</body>
+</html>
