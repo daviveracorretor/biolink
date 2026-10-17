@@ -18,6 +18,7 @@
       button.setAttribute('aria-label', dark ? 'Ativar tema claro' : 'Ativar tema escuro');
       button.title = dark ? 'Ativar tema claro' : 'Ativar tema escuro';
       button.querySelector('span').textContent = dark ? '☀' : '☾';
+      $$('.brand-mark').forEach(mark => { mark.src = dark ? mark.dataset.darkSrc : mark.dataset.lightSrc; });
     };
     updateButton();
     button.addEventListener('click', () => {
