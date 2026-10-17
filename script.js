@@ -12,9 +12,18 @@
   function initTheme() {
     const saved = localStorage.getItem('dv-theme');
     document.documentElement.dataset.theme = saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    $('#theme-toggle').addEventListener('click', () => {
+    const button = $('#theme-toggle');
+    const updateButton = () => {
+      const dark = document.documentElement.dataset.theme === 'dark';
+      button.setAttribute('aria-label', dark ? 'Ativar tema claro' : 'Ativar tema escuro');
+      button.title = dark ? 'Ativar tema claro' : 'Ativar tema escuro';
+      button.querySelector('span').textContent = dark ? '☀' : '☾';
+    };
+    updateButton();
+    button.addEventListener('click', () => {
       const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
       document.documentElement.dataset.theme = next; localStorage.setItem('dv-theme', next);
+      updateButton();
     });
   }
   function setupProfile() {

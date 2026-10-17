@@ -9,6 +9,9 @@
 
 /* Profile and credit card follow the supplied mobile reference. */
 :root{--bg:#edf2f6;--surface:#fff;--surface-2:#e4ebef;--ink:#13212b;--muted:#687985;--accent:#117d79;--accent-dark:#0a625f;--border:#dce4e8;--serif:Georgia,'Times New Roman',serif}
+[data-theme="dark"]{color-scheme:dark;--bg:#101a20;--surface:#17242c;--surface-2:#22343d;--ink:#edf4f6;--muted:#afbec6;--accent:#53bcb4;--accent-dark:#71d2ca;--border:#32454e;--shadow:0 16px 50px #0005}
+[data-theme="dark"] .profile h1{color:#edf4f6}
+[data-theme="dark"] .bio{color:#afbec6}
 .page-shell{width:min(100% - 32px,800px)}
 .page-shell{position:relative}
 .topbar{display:flex;position:absolute;top:8px;left:0;right:0;z-index:2;width:100%;height:44px;justify-content:space-between;align-items:center;margin:0}
