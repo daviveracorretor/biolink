@@ -25,7 +25,15 @@ O projeto Supabase `Davi Vera Linkbio` já está conectado. A tabela `properties
 3. Informe o e-mail e a senha definidos no convite. O formulário de imóveis aparecerá após a autenticação.
 4. Preencha os dados, selecione as fotos, escolha o status e clique em **Salvar imóvel**. Use **Publicado** para exibir o imóvel no catálogo.
 
-O UUID é um identificador público, não uma credencial. A chave `anonKey` em `config.js` é a chave publishable, segura para uso no navegador porque as políticas RLS limitam inserção, edição, exclusão e upload ao UUID do administrador. Nunca coloque `service_role`, senhas ou chaves secretas no repositório. Para reconstruir este backend, execute `supabase/setup.sql` no SQL Editor e mantenha o UUID alinhado ao `adminUserId` em `config.js`.
+O UUID é um identificador público, não uma credencial. A chave `anonKey` em `config.js` é a chave publishable, destinada ao navegador; ela não concede privilégios administrativos por si só. As políticas RLS do banco e Storage limitam inserção, edição, exclusão e upload ao UUID do administrador. O próprio código do navegador pode ser lido por qualquer visitante: não coloque `service_role`, senhas ou outras chaves secretas no repositório.
+
+### Segurança e arquivos `.env`
+
+Este site é estático e publicado pelo GitHub Pages. Portanto, qualquer valor incluído no HTML, JavaScript, arquivos gerados ou requisições do navegador fica visível ao público. Um `.env` não esconderia valores usados pelo front-end; variáveis `.env` só protegem segredos quando lidas exclusivamente por um servidor ou durante um build que não publique o segredo no artefato final. O `.gitignore` ignora arquivos `.env` locais para reduzir o risco de adicioná-los ao Git por engano.
+
+Na revisão do projeto, a configuração contém somente a chave publishable do Supabase, o endereço do projeto e IDs públicos; não deve conter `service_role` nem senha. Telefone e Instagram são informações de contato públicas do site. A tela de login pede a senha em um campo mascarado; o acesso efetivo é controlado no Supabase por RLS, não pelo botão ou pelo UUID no JavaScript. As imagens do bucket `property-photos` e imóveis publicados são públicos por decisão de exibição do catálogo; não envie fotos ou dados privados para lá. Mantenha novos cadastros públicos desativados, proteja a conta Supabase com senha exclusiva e autenticação multifator, e nunca compartilhe links de recuperação ou tokens de sessão.
+
+Para reconstruir este backend, execute `supabase/setup.sql` no SQL Editor e mantenha o UUID alinhado ao `adminUserId` em `config.js`.
 
 O painel suporta rascunho, publicação, reserva, venda, edição, exclusão confirmada, múltiplas fotos e escolha da capa (a primeira foto é a capa). A pré-visualização permite revisar antes de salvar. Essa configuração autoriza um único usuário. Para trocar o administrador, substitua o UUID nas políticas do SQL e em `config.js`.
 

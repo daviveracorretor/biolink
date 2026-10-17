@@ -1,0 +1,7 @@
+# Local secrets and environment files (GitHub Pages static sites cannot hide
+# browser configuration; only keep genuine server-side secrets in these files).
+.env
+.env.*
+!.env.example
+*.pem
+*.key
