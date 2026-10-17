@@ -57,3 +57,22 @@
   .creci{margin-top:24px}
   .catalog{padding-top:55px}
 }
+
+/* A polished, gentle transition for the full-screen property photo viewer. */
+.image-modal[open]{animation:image-viewer-enter 360ms cubic-bezier(.22,1,.36,1) both}
+.image-modal[open]::backdrop{animation:image-viewer-backdrop 360ms ease both}
+.image-modal img{border-radius:10px;box-shadow:0 22px 70px #0006;will-change:opacity,transform,filter}
+.image-modal .modal-close{width:40px;height:40px;background:#ffffffdf;color:#172a31;box-shadow:0 4px 18px #0003;backdrop-filter:blur(12px);transition:transform .2s,background .2s}
+.image-modal .modal-close:hover{transform:scale(1.06);background:#fff}
+.gallery-arrow{display:grid;place-items:center;width:44px;height:44px;border:1px solid #ffffff9c;border-radius:50%;background:#ffffffd9;color:#172a31;font-size:27px;line-height:1;box-shadow:0 5px 22px #0003;backdrop-filter:blur(12px);transition:transform .2s,background .2s,box-shadow .2s}
+.gallery-prev{left:12px}.gallery-next{right:12px}
+.gallery-prev:hover{transform:translateY(-50%) scale(1.07);background:#fff;box-shadow:0 8px 26px #0004}
+.gallery-next:hover{transform:translateY(-50%) scale(1.07);background:#fff;box-shadow:0 8px 26px #0004}
+.gallery-arrow:active{transform:translateY(-50%) scale(.96)}
+.gallery-arrow:focus-visible,.image-modal .modal-close:focus-visible{outline:3px solid #53bcb4;outline-offset:3px}
+#gallery-count{bottom:14px;padding:6px 12px;border:1px solid #ffffff30;border-radius:999px;background:#101a20c9;color:#fff;font-size:12px;line-height:1.4;box-shadow:0 4px 18px #0003;backdrop-filter:blur(12px)}
+.modal-gallery img{transition:transform .35s cubic-bezier(.22,1,.36,1),filter .35s}
+.modal-gallery img:hover{transform:scale(1.015);filter:brightness(1.04)}
+@keyframes image-viewer-enter{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes image-viewer-backdrop{from{background:#10202300;backdrop-filter:blur(0)}to{background:#102023b5;backdrop-filter:blur(5px)}}
+@media(max-width:620px){.image-modal img{max-width:94vw;max-height:82vh;border-radius:8px}.gallery-prev{left:7px}.gallery-next{right:7px}.gallery-arrow{width:40px;height:40px}}

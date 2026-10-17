@@ -3,7 +3,7 @@
   const config = window.SITE_CONFIG || {};
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
-  const state = { properties: [], category: config.categories?.[0] || 'Todos', gallery: [], galleryIndex: 0, pendingPhotos: [], user: null };
+  const state = { properties: [], category: config.categories?.[0] || 'Todos', gallery: [], galleryIndex: 0, galleryTitle: '', galleryRequestId: 0, pendingPhotos: [], user: null };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const hasSupabase = () => Boolean(config.supabase?.url && config.supabase?.anonKey);
   const wa = (message = 'Olá, Davi! Gostaria de conversar sobre imóveis em Cascavel.') => config.whatsapp ? `https://wa.me/${encodeURIComponent(config.whatsapp)}?text=${encodeURIComponent(message)}` : '#admin';
@@ -72,7 +72,7 @@
   function openProperty(id) {
     const p = state.properties.find(x => String(x.id) === String(id)); if (!p) return;
     const photos = p.photos?.map(x => x.url).filter(Boolean) || (p.cover_url ? [p.cover_url] : []);
-    state.gallery = photos; state.galleryIndex = 0;
+    state.gallery = photos; state.galleryIndex = 0; state.galleryTitle = p.title; state.galleryRequestId++;
     const facts = [['Área',p.area && `${p.area} m²`],['Quartos',p.bedrooms],['Suítes',p.suites],['Banheiros',p.bathrooms],['Vagas',p.parking]].filter(x=>x[1]);
     const url = new URL(location.href); url.hash = `imovel-${encodeURIComponent(p.id)}`;
     const contact = wa(`Olá, Davi! Tenho interesse no imóvel ${p.title}${p.code ? ` (código ${p.code})`:''}.`);
@@ -82,7 +82,39 @@
     $('#share-property').onclick = async () => { if (navigator.share) await navigator.share({title:p.title,url:url.href}); else { await navigator.clipboard.writeText(url.href); $('#share-property').textContent = 'Link copiado'; } };
     $('#property-modal').showModal(); history.replaceState(null,'',url); track(p.id);
   }
-  function showLarge(index) { if (!state.gallery.length) return; state.galleryIndex = (index + state.gallery.length) % state.gallery.length; $('#large-image').src = state.gallery[state.galleryIndex]; $('#gallery-count').textContent = `${state.galleryIndex+1} / ${state.gallery.length}`; $('#image-modal').showModal(); }
+  function showLarge(index) {
+    if (!state.gallery.length) return;
+    state.galleryIndex = (index + state.gallery.length) % state.gallery.length;
+    const source = state.gallery[state.galleryIndex];
+    const image = $('#large-image');
+    const dialog = $('#image-modal');
+    const requestId = ++state.galleryRequestId;
+    $('#gallery-count').textContent = `${state.galleryIndex + 1} / ${state.gallery.length}`;
+    $('.gallery-prev').hidden = state.gallery.length < 2;
+    $('.gallery-next').hidden = state.gallery.length < 2;
+    if (!dialog.open) dialog.showModal();
+
+    let committed = false;
+    const commitImage = () => {
+      if (committed || requestId !== state.galleryRequestId) return;
+      committed = true;
+      image.src = source;
+      image.alt = `${state.galleryTitle} — foto ${state.galleryIndex + 1}`;
+      if (typeof image.animate === 'function') {
+        image.animate([
+          { opacity: 0, transform: 'translateY(10px) scale(.985)', filter: 'blur(3px)' },
+          { opacity: 1, transform: 'translateY(0) scale(1)', filter: 'blur(0)' }
+        ], { duration: 420, easing: 'cubic-bezier(.22,1,.36,1)' });
+      }
+      const nextSource = state.gallery[(state.galleryIndex + 1) % state.gallery.length];
+      if (nextSource && nextSource !== source) { const nextImage = new Image(); nextImage.src = nextSource; }
+    };
+    const preload = new Image();
+    preload.onload = commitImage;
+    preload.onerror = commitImage;
+    preload.src = source;
+    if (preload.complete) requestAnimationFrame(commitImage);
+  }
   function authHeaders() { return {'apikey':config.supabase.anonKey, 'Authorization':`Bearer ${state.user?.access_token || config.supabase.anonKey}`, 'Content-Type':'application/json'}; }
   async function api(path, options={}) {
     const response = await fetch(`${config.supabase.url.replace(/\/$/,'')}/rest/v1/${path}`, { ...options, headers: { ...authHeaders(), ...(options.headers || {}) } });
