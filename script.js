@@ -86,12 +86,28 @@
     const list = filteredProperties(); const grid = $('#property-grid');
     $('#listing-count').textContent = `${list.length} ${list.length === 1 ? 'imóvel' : 'imóveis'}`;
     $('#empty-state').hidden = list.length > 0; grid.innerHTML = list.map(p => {
-      const cover = p.photos?.find(x => x.path === p.cover)?.url || p.photos?.[0]?.url || p.cover_url || '';
+      const photos = (p.photos || []).filter(photo => photo?.url);
+      const coverIndex = Math.max(0, photos.findIndex(photo => photo.path === p.cover));
+      const cover = photos[coverIndex]?.url || p.cover_url || '';
       const tags = [p.featured ? '<span class="badge">DESTAQUE</span>':'', p.status === 'reserved' ? '<span class="badge status">RESERVADO</span>':'', p.status === 'sold' ? '<span class="badge status">VENDIDO</span>':''].join('');
       const facts = [p.bedrooms ? `${esc(p.bedrooms)} quartos`:'', p.area ? `${decimal(p.area)} m²`:'', p.parking ? `${esc(p.parking)} vagas`:'' ].filter(Boolean).join(' · ');
-      return `<article class="property-card" tabindex="0" role="button" data-id="${esc(p.id)}"><div class="property-image">${cover ? `<img src="${esc(cover)}" alt="${esc(p.title)}" loading="lazy">`:''}<div class="property-badges">${tags}</div></div><div class="property-copy"><p class="eyebrow">${esc(p.category || 'IMÓVEL')}</p><h3>${esc(p.title)}</h3><p class="property-region">${esc(p.region || 'Cascavel, PR')}</p><p class="property-price">${money(p.price)}</p>${facts ? `<p class="property-meta">${facts}</p>`:''}</div></article>`;
+      const galleryControls = photos.length > 1 ? `<div class="card-gallery-controls" role="group" aria-label="Fotos de ${esc(p.title)}"><button type="button" class="card-gallery-arrow" data-gallery-step="-1" aria-label="Foto anterior de ${esc(p.title)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5.5-6.5 6.5 6.5 6.5"/></svg></button><span class="card-gallery-count" aria-live="polite">${coverIndex + 1} / ${photos.length}</span><button type="button" class="card-gallery-arrow" data-gallery-step="1" aria-label="Próxima foto de ${esc(p.title)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></svg></button></div>` : '';
+      return `<article class="property-card" tabindex="0" role="button" data-id="${esc(p.id)}"><div class="property-image">${cover ? `<img src="${esc(cover)}" alt="${esc(p.title)}" data-photo-index="${coverIndex}" loading="lazy">`:''}<div class="property-badges">${tags}</div>${galleryControls}</div><div class="property-copy"><p class="eyebrow">${esc(p.category || 'IMÓVEL')}</p><h3>${esc(p.title)}</h3><p class="property-region">${esc(p.region || 'Cascavel, PR')}</p><p class="property-price">${money(p.price)}</p>${facts ? `<p class="property-meta">${facts}</p>`:''}</div></article>`;
     }).join('');
-    $$('.property-card', grid).forEach(card => { card.onclick = () => openProperty(card.dataset.id); card.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProperty(card.dataset.id); } }; });
+    $$('.property-card', grid).forEach(card => { card.onclick = () => openProperty(card.dataset.id); card.onkeydown = e => { if (e.target.closest('[data-gallery-step]')) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProperty(card.dataset.id); } }; });
+    $$('[data-gallery-step]', grid).forEach(button => button.onclick = event => {
+      event.preventDefault(); event.stopPropagation();
+      const card = button.closest('.property-card');
+      const property = state.properties.find(item => String(item.id) === card.dataset.id);
+      const photos = (property?.photos || []).filter(photo => photo?.url);
+      if (photos.length < 2) return;
+      const image = $('.property-image img', card);
+      const index = (Number(image.dataset.photoIndex) + Number(button.dataset.galleryStep) + photos.length) % photos.length;
+      image.src = photos[index].url;
+      image.alt = `${property.title} — foto ${index + 1}`;
+      image.dataset.photoIndex = String(index);
+      $('.card-gallery-count', card).textContent = `${index + 1} / ${photos.length}`;
+    });
   }
   async function track(id) { if (!config.analyticsEndpoint) return; try { await fetch(config.analyticsEndpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({event:'property_view', property_id:id, timestamp:new Date().toISOString()}) }); } catch {} }
   function openProperty(id) {
