@@ -66,15 +66,8 @@
     $('#year').textContent = new Date().getFullYear();
   }
   function filteredProperties() {
-    const search = $('#search-input').value.trim().toLocaleLowerCase('pt-BR');
-    const region = $('#region-filter').value.trim().toLocaleLowerCase('pt-BR');
-    const price = Number($('#price-filter').value); const rooms = Number($('#rooms-filter').value);
     return state.properties.filter(p => p.status === 'published' || ['reserved','sold'].includes(p.status))
-      .filter(p => state.category === 'Todos' || p.category === state.category)
-      .filter(p => !search || `${p.title} ${p.region} ${p.description}`.toLocaleLowerCase('pt-BR').includes(search))
-      .filter(p => !region || String(p.region || '').toLocaleLowerCase('pt-BR').includes(region))
-      .filter(p => !price || !p.price || Number(p.price) <= price)
-      .filter(p => !rooms || Number(p.bedrooms || 0) >= rooms);
+      .filter(p => state.category === 'Todos' || p.category === state.category);
   }
   function renderCategories() {
     const host = $('#category-filters');
@@ -268,9 +261,6 @@
   function setupAdmin() { $('#admin-login').onclick=login;$('#admin-login-form').addEventListener('submit',submitAdminLogin);$('#admin-login-cancel').onclick=()=>$('#admin-login-dialog').close();$('#admin-login-dialog').addEventListener('close',()=>{const form=$('#admin-login-form');if(!state.user)form.reset();});$('#admin-logout').onclick=async()=>{try{await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`}});}catch{}state.user=null;$('#property-form').hidden=true;await loadCatalog();};$('#property-form').addEventListener('submit',saveProperty);$('#add-floor-plan').onclick=()=>addFloorPlanRow();$('#property-form').elements.photos.addEventListener('change',e=>{for(const f of e.target.files){const url=URL.createObjectURL(f);state.pendingPhotos.push({path:`local-${Date.now()}-${f.name}`,url});}renderPhotoPreview();});$('#property-form').addEventListener('reset',()=>{state.pendingPhotos=[];$('#floor-plans-editor').replaceChildren();setTimeout(renderPhotoPreview);});$('#preview-property').onclick=()=>{const f=$('#property-form');const fd=new FormData(f);const temp={id:'preview',title:fd.get('title')||'Pré-visualização',description:fd.get('description'),category:fd.get('category'),region:fd.get('region'),price:fd.get('price'),status:'published',photos:state.pendingPhotos,featured:fd.get('featured')==='on',bedrooms:fd.get('bedrooms'),area:fd.get('area'),features:{items:String(fd.get('features')).split(',').map(value=>value.trim()).filter(Boolean),floor_plans:readFloorPlans()},payment:fd.get('payment')};state.properties.unshift(temp);openProperty('preview');state.properties.shift();}; }
   function init() {
     initTheme();setupProfile();renderCategories();setupPasswordRecovery();
-    $('#filter-toggle').onclick=()=>{const panel=$('#filters-panel');panel.hidden=!panel.hidden;$('#filter-toggle').setAttribute('aria-expanded',String(!panel.hidden));};
-    ['search-input','region-filter','price-filter','rooms-filter'].forEach(id=>document.getElementById(id).addEventListener('input',renderProperties));
-    $('#clear-filters').onclick=()=>{$('#search-input').value='';$('#region-filter').value='';$('#price-filter').value='';$('#rooms-filter').value='';state.category='Todos';renderCategories();renderProperties();};
     $$('.modal-close').forEach(b=>b.onclick=()=>b.closest('dialog').close());[$('#property-modal'),$('#image-modal')].forEach(d=>d.addEventListener('click',e=>{if(e.target===d)d.close();}));$('#property-modal').addEventListener('close',()=>{if(location.hash.startsWith('#imovel-'))history.replaceState(null,'',location.pathname+location.search);});
     $('.gallery-prev').onclick=()=>showLarge(state.galleryIndex-1);$('.gallery-next').onclick=()=>showLarge(state.galleryIndex+1);document.addEventListener('keydown',e=>{if(e.key==='Escape')return;if($('#image-modal').open&&e.key==='ArrowLeft')showLarge(state.galleryIndex-1);if($('#image-modal').open&&e.key==='ArrowRight')showLarge(state.galleryIndex+1);});
     setupAdmin();loadCatalog().then(()=>{if(location.hash.startsWith('#imovel-'))openProperty(decodeURIComponent(location.hash.slice(8)));});

@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=16">
   <script src="config.js?v=7"></script>
-  <script src="script.js?v=12" defer></script>
+  <script src="script.js?v=13" defer></script>
 </head>
 <body>
   <div class="page-shell">
@@ -46,10 +46,6 @@
 
       <section class="catalog" id="imoveis" aria-labelledby="catalog-title">
         <div class="section-heading"><div><p class="eyebrow">CURADORIA DAVI VERA</p><h2 id="catalog-title">Imóveis em destaque</h2></div><span class="listing-count" id="listing-count">0 imóveis</span></div>
-        <div class="catalog-tools"><label class="search-box"><span aria-hidden="true">⌕</span><input id="search-input" type="search" placeholder="Busque por imóvel ou região" aria-label="Buscar imóvel ou região"></label><button class="filter-toggle" id="filter-toggle" aria-expanded="false">Filtros <span aria-hidden="true">⌄</span></button></div>
-        <div class="filters-panel" id="filters-panel" hidden>
-          <div class="filter-fields"><label>Região<input id="region-filter" type="text" placeholder="Ex.: Centro"></label><label>Preço máximo (R$)<input id="price-filter" type="number" min="0" placeholder="Sem limite"></label><label>Quartos, no mínimo<input id="rooms-filter" type="number" min="0" placeholder="Qualquer"></label><button class="text-button" id="clear-filters">Limpar filtros</button></div>
-        </div>
         <div class="property-grid" id="property-grid" aria-live="polite"></div>
         <div class="empty-state" id="empty-state"><span class="empty-icon" aria-hidden="true">⌂</span><h3>Nenhum imóvel disponível nesta seleção.</h3><p>Experimente outra categoria ou ajuste os filtros para ver mais opções.</p></div>
       </section>
