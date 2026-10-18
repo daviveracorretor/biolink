@@ -112,3 +112,17 @@
 .floor-plan-row .remove-floor-plan{white-space:nowrap;margin-bottom:2px}
 .category-chip.active,.category-chip.active:hover{box-shadow:0 5px 14px #117d7938}
 @media(max-width:620px){.floor-plan-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.floor-plan-row .remove-floor-plan{justify-self:start}}
+
+/* Add breathing room between the social buttons and the credit card. */
+.profile{padding-bottom:18px}
+.social-actions{margin-bottom:18px}
+
+/* Let the image use nearly the full device width; keep the photo centered. */
+.image-modal{width:calc(100vw - 16px);height:calc(100vh - 16px);height:calc(100dvh - 16px);max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px);padding:48px 12px 66px;border-radius:16px}
+.image-modal img{max-width:calc(100vw - 40px);max-height:calc(100vh - 146px);max-height:calc(100dvh - 146px);margin:0 auto}
+.gallery-controls{position:absolute;z-index:2;left:50%;bottom:13px;display:flex;align-items:center;justify-content:center;gap:10px;transform:translateX(-50%)}
+.gallery-controls .gallery-arrow{position:static;top:auto;left:auto;right:auto;transform:none;width:42px;height:42px;border:1px solid #ffffff48;border-radius:12px;background:#ffffff12;color:#f7fbfb;font-size:23px;line-height:1;opacity:.9;box-shadow:none;backdrop-filter:blur(10px);transition:background .2s,border-color .2s,transform .2s,opacity .2s}
+.gallery-controls .gallery-arrow:hover{transform:translateY(-2px);background:#ffffff24;border-color:#ffffff70;opacity:1;box-shadow:none}
+.gallery-controls .gallery-arrow:active{transform:translateY(0) scale(.97)}
+.gallery-controls #gallery-count{position:static;left:auto;bottom:auto;transform:none;min-width:62px;padding:6px 11px;border:1px solid #ffffff2c;border-radius:999px;background:#101a20a8;color:#ffffffdb;text-align:center;font-size:11px;line-height:1.4;box-shadow:none;backdrop-filter:blur(10px)}
+@media(max-width:620px){.image-modal{width:calc(100vw - 12px);height:calc(100vh - 12px);height:calc(100dvh - 12px);max-width:calc(100vw - 12px);max-height:calc(100dvh - 12px);padding:45px 6px 64px;border-radius:12px}.image-modal img{max-width:calc(100vw - 28px);max-height:calc(100vh - 132px);max-height:calc(100dvh - 132px);border-radius:8px}.gallery-controls{bottom:12px;gap:8px}.gallery-controls .gallery-arrow{width:40px;height:40px;border-radius:11px}.profile{padding-bottom:18px}.social-actions{margin-bottom:18px}}
