@@ -13,19 +13,18 @@
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700,800,900&display=swap" rel="stylesheet">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=17">
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@14..144,300..700&family=Poppins:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=18">
   <script src="config.js?v=8"></script>
-  <script src="script.js?v=15" defer></script>
+  <script src="script.js?v=16" defer></script>
 </head>
 <body>
   <div class="page-shell">
     <header class="topbar"><a class="brand-logo" href="#inicio" aria-label="Davi Vera, início"><img class="brand-mark" src="assets/dv-logo-light.png" data-light-src="assets/dv-logo-light.png" data-dark-src="assets/dv-logo-dark.png" alt="Logo Davi Vera" width="44" height="44"></a><button class="theme-toggle" id="theme-toggle" aria-label="Ativar tema escuro" title="Ativar tema escuro"><span aria-hidden="true">☾</span></button></header>
     <main>
       <section class="profile" id="inicio" aria-labelledby="profile-name">
-        <div class="avatar" id="avatar" aria-label="Foto de Davi Vera"><img src="assets/davi-vera.jpg" alt="Davi Vera" fetchpriority="high"></div>
+        <button class="avatar" id="avatar" type="button" aria-label="Saiba um pouco sobre Davi Vera"><img src="assets/davi-vera.jpg" alt="Davi Vera" fetchpriority="high"></button>
         <h1 id="profile-name">Davi Vera</h1>
-        <p class="bio">Especialista em Lançamentos e<br class="desktop-break"> Financiamento MCMV em Cascavel</p>
         <div class="social-actions" aria-label="Redes sociais">
           <a class="social-icon" id="whatsapp-link" href="#" aria-label="WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.9L.2 24l6.5-1.7a11.8 11.8 0 0 0 5.4 1.3h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.1-1.2-6.1-3.5-8.3ZM12.1 21.6c-1.7 0-3.4-.5-4.8-1.3l-.4-.2-3.9 1 1-3.8-.2-.4a9.8 9.8 0 0 1-1.5-5.2c0-5.4 4.4-9.8 9.8-9.8 2.6 0 5.1 1 6.9 2.9a9.7 9.7 0 0 1 2.9 6.9c0 5.5-4.4 9.9-9.8 9.9Zm5.4-7.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.2-.2.3-.8.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.4.1-.6l.4-.5.3-.5c.1-.2 0-.4 0-.5 0-.1-.7-1.6-1-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.8 1.1 3c.1.2 2 3.1 4.8 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.6-.1 1.7-.7 1.9-1.3.2-.7.2-1.2.2-1.3-.1-.2-.3-.3-.5-.4Z"/></svg></a>
           <a class="social-icon" id="instagram-link" href="#" aria-label="Instagram"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 2h9.6A5.2 5.2 0 0 1 22 7.2v9.6a5.2 5.2 0 0 1-5.2 5.2H7.2A5.2 5.2 0 0 1 2 16.8V7.2A5.2 5.2 0 0 1 7.2 2Zm0 2A3.2 3.2 0 0 0 4 7.2v9.6A3.2 3.2 0 0 0 7.2 20h9.6a3.2 3.2 0 0 0 3.2-3.2V7.2A3.2 3.2 0 0 0 16.8 4H7.2Zm10.1 1.5a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg></a>
@@ -61,6 +60,7 @@
     <footer><a class="brand-logo brand-logo-footer" href="#inicio" aria-label="Davi Vera, início"><img class="brand-mark" src="assets/dv-logo-light.png" data-light-src="assets/dv-logo-light.png" data-dark-src="assets/dv-logo-dark.png" alt="Logo Davi Vera" width="40" height="40"></a><p>Imóveis com clareza, cuidado e boas conversas.</p><small>© <span id="year"></span> Davi Vera · CRECI F-51897</small></footer>
   </div>
   <dialog id="property-modal" class="property-modal"><button class="modal-close" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button><div id="modal-content"></div></dialog>
+  <dialog id="about-modal" class="about-modal" aria-labelledby="about-title"><button class="modal-close" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button><img src="assets/davi-vera.jpg" alt="Davi Vera" class="about-photo"><p class="eyebrow">PRAZER, SOU O DAVI</p><h2 id="about-title">Seu próximo imóvel começa com uma boa conversa.</h2><p>Sou corretor de imóveis em Cascavel/PR e estou aqui para ajudar você a encontrar um lugar que combine com seus planos, com atendimento próximo e transparente.</p><p class="about-creci">CRECI F-51897 · Cascavel/PR</p><a class="button button-primary" href="#" id="about-contact">Falar comigo</a></dialog>
   <dialog id="image-modal" class="image-modal"><button class="modal-close" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button><img id="large-image" alt="Foto ampliada do imóvel"><div class="gallery-controls" role="group" aria-label="Navegação das fotos"><button class="gallery-arrow gallery-prev" aria-label="Foto anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5.5-6.5 6.5 6.5 6.5"/></svg></button><span id="gallery-count"></span><button class="gallery-arrow gallery-next" aria-label="Próxima foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></svg></button></div></dialog>
   <dialog id="admin-login-dialog" class="recovery-modal" aria-labelledby="admin-login-title">
     <form id="admin-login-form" class="recovery-form">

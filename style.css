@@ -113,6 +113,23 @@
 .category-chip.active,.category-chip.active:hover{box-shadow:0 5px 14px #117d7938}
 @media(max-width:620px){.floor-plan-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.floor-plan-row .remove-floor-plan{justify-self:start}}
 
+/* Compact profile header with an interactive portrait and a short about dialog. */
+.profile{padding-top:18px}
+.avatar{display:grid;place-items:center;padding:0;cursor:pointer;transition:transform .2s,box-shadow .2s}
+.avatar:hover{transform:translateY(-2px);box-shadow:0 0 0 5px #edf2f6,0 8px 22px #14262d24}
+.avatar:focus-visible{outline:3px solid var(--accent);outline-offset:5px}
+.profile h1{font-family:'Google Sans Flex','Satoshi',sans-serif;font-size:clamp(23px,6vw,27px);font-weight:300;line-height:1.15;letter-spacing:.08em;text-transform:uppercase;margin:13px 0 0}
+.social-actions{margin-top:13px}
+.about-modal{position:relative;max-width:min(420px,calc(100vw - 28px));padding:34px 28px 28px;text-align:center;overflow:visible}
+.about-modal .modal-close{position:absolute;top:12px;right:12px;margin:0;float:none}
+.about-photo{width:88px;height:88px;object-fit:cover;object-position:center 35%;border-radius:50%;border:3px solid var(--surface);outline:2px solid var(--accent);margin:0 auto 16px;display:block}
+.about-modal .eyebrow{margin:0 0 8px}
+.about-modal h2{font:600 24px/1.2 var(--sans);margin:0 0 12px;letter-spacing:-.03em}
+.about-modal>p:not(.eyebrow){font-size:14px;line-height:1.65;color:var(--muted);margin:0}
+.about-modal .about-creci{font-size:12px!important;margin:15px 0 18px!important}
+.about-modal .button{min-height:44px}
+@media(max-width:620px){.profile{padding-top:18px}.profile h1{font-size:24px}.about-modal{padding:32px 22px 23px}}
+
 /* Add breathing room between the social buttons and the credit card. */
 .profile{padding-bottom:18px}
 .social-actions{margin-bottom:18px}
