@@ -14,9 +14,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=12">
-  <script src="config.js?v=6"></script>
-  <script src="script.js?v=10" defer></script>
+  <link rel="stylesheet" href="style.css?v=13">
+  <script src="config.js?v=7"></script>
+  <script src="script.js?v=11" defer></script>
 </head>
 <body>
   <div class="page-shell">
@@ -32,15 +32,15 @@
         </div>
       </section>
 
-      <nav class="category-scroll category-scroll-hero" id="category-filters" aria-label="Filtrar imóveis por categoria"></nav>
-
       <section class="spotlight" id="spotlight" aria-label="Simulação de crédito">
         <p class="spotlight-badge">Facilidade</p>
         <h2>Faça sua Simulação de Crédito</h2>
-        <p class="spotlight-description">Descubra o valor do seu subsídio e parcelas em 2 minutos</p>
-        <p class="spotlight-promise">⏱️ 2 minutos <span aria-hidden="true">|</span> 💰 Sem compromisso</p>
+        <p class="spotlight-description">Descubra o valor do seu subsídio e as condições que fazem sentido para você.</p>
+        <p class="spotlight-promise"><span aria-hidden="true"></span>Simulação sem compromisso</p>
         <a class="button button-light" id="simulate-link" href="#">Simular no WhatsApp</a>
       </section>
+
+      <nav class="category-scroll category-scroll-hero" id="category-filters" aria-label="Filtrar imóveis por categoria"></nav>
 
       <p class="creci">CRECI F-51897 <span>·</span> Cascavel/PR</p>
 
@@ -51,7 +51,7 @@
           <div class="filter-fields"><label>Região<input id="region-filter" type="text" placeholder="Ex.: Centro"></label><label>Preço máximo (R$)<input id="price-filter" type="number" min="0" placeholder="Sem limite"></label><label>Quartos, no mínimo<input id="rooms-filter" type="number" min="0" placeholder="Qualquer"></label><button class="text-button" id="clear-filters">Limpar filtros</button></div>
         </div>
         <div class="property-grid" id="property-grid" aria-live="polite"></div>
-        <div class="empty-state" id="empty-state"><span class="empty-icon" aria-hidden="true">⌂</span><h3>Seu novo endereço pode estar aqui.</h3><p>Estou selecionando oportunidades em Cascavel. Fale comigo e me conte o que você procura.</p><a id="empty-whatsapp" class="text-link" href="#">Vamos conversar <span aria-hidden="true">↗</span></a></div>
+        <div class="empty-state" id="empty-state"><span class="empty-icon" aria-hidden="true">⌂</span><h3>Nenhum imóvel disponível nesta seleção.</h3><p>Experimente outra categoria ou ajuste os filtros para ver mais opções.</p></div>
       </section>
 
       <section class="contact-grid" aria-label="Atendimento e captação">
@@ -60,7 +60,7 @@
       </section>
 
       <section class="admin-section" id="admin"><details><summary>Área de gerenciamento <span>+</span></summary><div class="admin-content"><p id="admin-status" class="admin-status">Configure a integração para cadastrar e publicar imóveis com segurança.</p><button class="button button-secondary" id="admin-login" hidden>Entrar como administrador</button><button class="text-button" id="admin-logout" hidden>Sair</button><form id="property-form" hidden>
-        <input type="hidden" name="id"><label>Título<input name="title" required maxlength="100"></label><label>Descrição<textarea name="description" rows="4"></textarea></label><div class="form-row"><label>Categoria<select name="category" required></select></label><label>Região<input name="region" required></label><label>Preço (R$)<input name="price" type="number" min="0"></label></div><div class="form-row"><label>Área (m²)<input name="area" type="number" min="0"></label><label>Quartos<input name="bedrooms" type="number" min="0"></label><label>Suítes<input name="suites" type="number" min="0"></label><label>Banheiros<input name="bathrooms" type="number" min="0"></label><label>Vagas<input name="parking" type="number" min="0"></label></div><label>Diferenciais (separe por vírgulas)<input name="features"></label><label>Condições de pagamento<input name="payment"></label><label>Fotos<input name="photos" type="file" accept="image/*" multiple></label><div id="photo-preview" class="photo-preview"></div><div class="form-row"><label>Código<input name="code"></label><label>Status<select name="status"><option value="draft">Rascunho</option><option value="published">Publicado</option><option value="reserved">Reservado</option><option value="sold">Vendido</option></select></label><label><input name="featured" type="checkbox"> Destacar</label></div><div class="admin-actions"><button class="button button-primary" type="submit">Salvar imóvel</button><button class="button button-secondary" type="button" id="preview-property">Pré-visualizar</button><button class="text-button" type="reset">Limpar</button></div></form><div id="admin-list" class="admin-list"></div></div></details></section>
+        <input type="hidden" name="id"><label>Título<input name="title" required maxlength="100"></label><label>Descrição<textarea name="description" rows="4"></textarea></label><div class="form-row"><label>Categoria<select name="category" required></select></label><label>Região<input name="region" required></label><label>Preço (R$)<input name="price" type="number" min="0" step="0.01" inputmode="decimal"></label></div><div class="form-row"><label>Área (m²)<input name="area" type="number" min="0" step="0.01" inputmode="decimal"></label><label>Quartos<input name="bedrooms" type="number" min="0" step="1"></label><label>Suítes<input name="suites" type="number" min="0" step="1"></label><label>Banheiros<input name="bathrooms" type="number" min="0" step="1"></label><label>Vagas<input name="parking" type="number" min="0" step="1"></label></div><label>Diferenciais (separe por vírgulas)<input name="features"></label><div class="floor-plans-field"><div><strong>Plantas disponíveis <span>(opcional)</span></strong><p class="field-hint">Adicione cada combinação de quartos, suítes e área. Deixe em branco se não precisar informar plantas.</p></div><div id="floor-plans-editor" class="floor-plans-editor"></div><button type="button" class="button button-secondary" id="add-floor-plan">+ Adicionar planta</button></div><label>Condições de pagamento<input name="payment"></label><label>Fotos<input name="photos" type="file" accept="image/*" multiple></label><div id="photo-preview" class="photo-preview"></div><div class="form-row"><label>Código<input name="code"></label><label>Status<select name="status"><option value="draft">Rascunho</option><option value="published">Publicado</option><option value="reserved">Reservado</option><option value="sold">Vendido</option></select></label><label><input name="featured" type="checkbox"> Destacar</label></div><div class="admin-actions"><button class="button button-primary" type="submit">Salvar imóvel</button><button class="button button-secondary" type="button" id="preview-property">Pré-visualizar</button><button class="text-button" type="reset">Limpar</button></div></form><div id="admin-list" class="admin-list"></div></div></details></section>
     </main>
     <footer><a class="brand-logo brand-logo-footer" href="#inicio" aria-label="Davi Vera, início"><img class="brand-mark" src="assets/dv-logo-light.png" data-light-src="assets/dv-logo-light.png" data-dark-src="assets/dv-logo-dark.png" alt="Logo Davi Vera" width="40" height="40"></a><p>Imóveis com clareza, cuidado e boas conversas.</p><small>© <span id="year"></span> Davi Vera · CRECI F-51897</small></footer>
   </div>

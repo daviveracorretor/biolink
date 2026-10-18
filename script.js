@@ -7,7 +7,32 @@
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const hasSupabase = () => Boolean(config.supabase?.url && config.supabase?.anonKey);
   const wa = (message = 'Olá, Davi! Gostaria de conversar sobre imóveis em Cascavel.') => config.whatsapp ? `https://wa.me/${encodeURIComponent(config.whatsapp)}?text=${encodeURIComponent(message)}` : '#admin';
-  const money = n => n ? Number(n).toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:0 }) : 'Consulte condições';
+  const money = n => n ? Number(n).toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:2 }) : 'Consulte condições';
+  const propertyFeatures = p => Array.isArray(p?.features) ? p.features : (p?.features?.items || []);
+  const propertyFloorPlans = p => Array.isArray(p?.features?.floor_plans) ? p.features.floor_plans : [];
+  const decimal = value => Number(value).toLocaleString('pt-BR', { maximumFractionDigits:2 });
+  const floorPlanLabel = plan => {
+    if (typeof plan === 'string') return plan;
+    return [plan.bedrooms != null ? `${plan.bedrooms} ${plan.bedrooms === 1 ? 'quarto' : 'quartos'}` : '', plan.suites != null ? (plan.suites ? `${plan.suites} ${plan.suites === 1 ? 'suíte' : 'suítes'}` : 'sem suíte') : '', plan.area ? `${decimal(plan.area)} m²` : ''].filter(Boolean).join(' · ');
+  };
+  function addFloorPlanRow(plan = {}) {
+    const row = document.createElement('div');
+    row.className = 'floor-plan-row';
+    row.innerHTML = '<label>Quartos<input name="plan_bedrooms" type="number" min="0" step="1" inputmode="numeric" placeholder="Ex.: 2"></label><label>Suítes<select name="plan_suites"><option value="">Não informado</option><option value="0">Sem suíte</option><option value="1">1 suíte</option><option value="2">2 suítes</option><option value="3">3 suítes</option></select></label><label>Área (m²)<input name="plan_area" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Ex.: 62,43"></label><button class="text-button remove-floor-plan" type="button" aria-label="Remover planta">Remover</button>';
+    row.querySelector('[name="plan_bedrooms"]').value = plan.bedrooms ?? '';
+    row.querySelector('[name="plan_suites"]').value = plan.suites ?? '';
+    row.querySelector('[name="plan_area"]').value = plan.area ?? '';
+    row.querySelector('.remove-floor-plan').onclick = () => row.remove();
+    $('#floor-plans-editor').append(row);
+  }
+  function readFloorPlans() {
+    return $$('.floor-plan-row', $('#floor-plans-editor')).map(row => {
+      const bedrooms = row.querySelector('[name="plan_bedrooms"]').value;
+      const suites = row.querySelector('[name="plan_suites"]').value;
+      const area = row.querySelector('[name="plan_area"]').value;
+      return { bedrooms:bedrooms === '' ? null : Number(bedrooms), suites:suites === '' ? null : Number(suites), area:area === '' ? null : Number(area) };
+    }).filter(plan => Object.values(plan).some(value => value !== null));
+  }
 
   function initTheme() {
     const saved = localStorage.getItem('dv-theme');
@@ -31,7 +56,7 @@
     if (config.profileImage) $('#avatar').innerHTML = `<img src="${esc(config.profileImage)}" alt="Davi Vera" onerror="this.remove()">`;
     const insta = $('#instagram-link');
     if (config.instagram) { insta.href = config.instagram; insta.target = '_blank'; insta.rel = 'noopener'; } else insta.hidden = true;
-    ['whatsapp-link','simulate-link','empty-whatsapp','buyer-link','owner-link'].forEach(id => {
+    ['whatsapp-link','simulate-link','buyer-link','owner-link'].forEach(id => {
       const el = document.getElementById(id);
       const text = id === 'owner-link' ? 'Olá, Davi! Tenho um imóvel em Cascavel e gostaria de conversar sobre anunciar.' : id === 'simulate-link' ? 'Olá, Davi! Gostaria de fazer uma simulação de crédito imobiliário.' : undefined;
       el.href = wa(text); if (!config.whatsapp) el.title = 'Configure o WhatsApp em config.js';
@@ -53,7 +78,7 @@
   }
   function renderCategories() {
     const host = $('#category-filters');
-    host.innerHTML = [...(config.categories || []), 'Todos'].map(c => `<button class="category-chip ${state.category === c ? 'active':''}" type="button" data-category="${esc(c)}">${esc(c)}</button>`).join('');
+    host.innerHTML = [...(config.categories || []), 'Todos'].map(c => `<button class="category-chip ${state.category === c ? 'active':''}" type="button" data-category="${esc(c)}" aria-pressed="${state.category === c}">${state.category === c ? '<span class="category-check" aria-hidden="true">✓</span>':''}${esc(c)}</button>`).join('');
     host.onclick = e => { const b = e.target.closest('[data-category]'); if (b) { state.category = b.dataset.category; renderCategories(); renderProperties(); } };
     const select = $('#property-form select[name="category"]'); if (select) select.innerHTML = (config.categories || []).map(c => `<option>${esc(c)}</option>`).join('');
   }
@@ -63,7 +88,7 @@
     $('#empty-state').hidden = list.length > 0; grid.innerHTML = list.map(p => {
       const cover = p.photos?.find(x => x.path === p.cover)?.url || p.photos?.[0]?.url || p.cover_url || '';
       const tags = [p.featured ? '<span class="badge">DESTAQUE</span>':'', p.status === 'reserved' ? '<span class="badge status">RESERVADO</span>':'', p.status === 'sold' ? '<span class="badge status">VENDIDO</span>':''].join('');
-      const facts = [p.bedrooms ? `${esc(p.bedrooms)} quartos`:'', p.area ? `${esc(p.area)} m²`:'', p.parking ? `${esc(p.parking)} vagas`:'' ].filter(Boolean).join(' · ');
+      const facts = [p.bedrooms ? `${esc(p.bedrooms)} quartos`:'', p.area ? `${decimal(p.area)} m²`:'', p.parking ? `${esc(p.parking)} vagas`:'' ].filter(Boolean).join(' · ');
       return `<article class="property-card" tabindex="0" role="button" data-id="${esc(p.id)}"><div class="property-image">${cover ? `<img src="${esc(cover)}" alt="${esc(p.title)}" loading="lazy">`:''}<div class="property-badges">${tags}</div></div><div class="property-copy"><p class="eyebrow">${esc(p.category || 'IMÓVEL')}</p><h3>${esc(p.title)}</h3><p class="property-region">${esc(p.region || 'Cascavel, PR')}</p><p class="property-price">${money(p.price)}</p>${facts ? `<p class="property-meta">${facts}</p>`:''}</div></article>`;
     }).join('');
     $$('.property-card', grid).forEach(card => { card.onclick = () => openProperty(card.dataset.id); card.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProperty(card.dataset.id); } }; });
@@ -73,10 +98,11 @@
     const p = state.properties.find(x => String(x.id) === String(id)); if (!p) return;
     const photos = p.photos?.map(x => x.url).filter(Boolean) || (p.cover_url ? [p.cover_url] : []);
     state.gallery = photos; state.galleryIndex = 0; state.galleryTitle = p.title; state.galleryRequestId++;
-    const facts = [['Área',p.area && `${p.area} m²`],['Quartos',p.bedrooms],['Suítes',p.suites],['Banheiros',p.bathrooms],['Vagas',p.parking]].filter(x=>x[1]);
+    const facts = [['Área',p.area && `${decimal(p.area)} m²`],['Quartos',p.bedrooms],['Suítes',p.suites],['Banheiros',p.bathrooms],['Vagas',p.parking]].filter(x=>x[1]);
+    const features = propertyFeatures(p); const floorPlans = propertyFloorPlans(p);
     const url = new URL(location.href); url.hash = `imovel-${encodeURIComponent(p.id)}`;
     const contact = wa(`Olá, Davi! Tenho interesse no imóvel ${p.title}${p.code ? ` (código ${p.code})`:''}.`);
-    $('#modal-content').innerHTML = `<div class="modal-gallery">${photos.map((src,i)=>`<img src="${esc(src)}" alt="${esc(p.title)} — foto ${i+1}" data-photo-index="${i}" loading="lazy">`).join('')}</div><div class="modal-copy"><p class="eyebrow">${esc(p.category || '')} · ${esc(p.region || 'Cascavel, PR')}</p><h2>${esc(p.title)}</h2><p class="modal-price">${money(p.price)}</p>${p.code ? `<p>Código do anúncio: ${esc(p.code)}</p>`:''}<div class="modal-facts">${facts.map(x=>`<span>${esc(x[0])}: ${esc(x[1])}</span>`).join('')}</div><p>${esc(p.description || '')}</p>${p.features?.length ? `<h3>Diferenciais</h3><p>${esc(Array.isArray(p.features) ? p.features.join(' · ') : p.features)}</p>`:''}${p.payment ? `<h3>Condições de pagamento</h3><p>${esc(p.payment)}</p>`:''}<div class="share-actions"><a class="button button-primary" href="${esc(contact)}" ${config.whatsapp?'target="_blank" rel="noopener"':''}>Falar sobre este imóvel ↗</a><button class="button button-secondary" id="copy-property-link">Copiar link</button><button class="button button-secondary" id="share-property">Compartilhar</button></div></div>`;
+    $('#modal-content').innerHTML = `<div class="modal-gallery">${photos.map((src,i)=>`<img src="${esc(src)}" alt="${esc(p.title)} — foto ${i+1}" data-photo-index="${i}" loading="lazy">`).join('')}</div><div class="modal-copy"><p class="eyebrow">${esc(p.category || '')} · ${esc(p.region || 'Cascavel, PR')}</p><h2>${esc(p.title)}</h2><p class="modal-price">${money(p.price)}</p>${p.code ? `<p>Código do anúncio: ${esc(p.code)}</p>`:''}<div class="modal-facts">${facts.map(x=>`<span>${esc(x[0])}: ${esc(x[1])}</span>`).join('')}</div><p>${esc(p.description || '')}</p>${features.length ? `<h3>Diferenciais</h3><p>${esc(features.join(' · '))}</p>`:''}${floorPlans.length ? `<h3>Plantas disponíveis</h3><ul class="modal-floor-plans">${floorPlans.map(floorPlanLabel).filter(Boolean).map(plan=>`<li>${esc(plan)}</li>`).join('')}</ul>`:''}${p.payment ? `<h3>Condições de pagamento</h3><p>${esc(p.payment)}</p>`:''}<div class="share-actions"><a class="button button-primary" href="${esc(contact)}" ${config.whatsapp?'target="_blank" rel="noopener"':''}>Falar sobre este imóvel ↗</a><button class="button button-secondary" id="copy-property-link">Copiar link</button><button class="button button-secondary" id="share-property">Compartilhar</button></div></div>`;
     $$('.modal-gallery img').forEach(img => img.onclick = () => showLarge(Number(img.dataset.photoIndex)));
     $('#copy-property-link').onclick = async () => { await navigator.clipboard.writeText(url.href); $('#copy-property-link').textContent = 'Link copiado'; };
     $('#share-property').onclick = async () => { if (navigator.share) await navigator.share({title:p.title,url:url.href}); else { await navigator.clipboard.writeText(url.href); $('#share-property').textContent = 'Link copiado'; } };
@@ -141,7 +167,7 @@
     $$('[data-edit]').forEach(b=>b.onclick=()=>fillForm(state.properties.find(p=>String(p.id)===b.dataset.edit)));
     $$('[data-delete]').forEach(b=>b.onclick=async()=>{const p=state.properties.find(x=>String(x.id)===b.dataset.delete);if(!confirm(`Excluir “${p.title}”? Esta ação não pode ser desfeita.`))return;try{await api(`${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(p.id)}`,{method:'DELETE'});await loadCatalog();}catch(e){setAdminStatus(`Falha ao excluir: ${e.message}`,true);}});
   }
-  function fillForm(p) { const f=$('#property-form'); f.reset(); f.elements.id.value=p.id; ['title','description','category','region','price','area','bedrooms','suites','bathrooms','parking','payment','code','status'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); f.elements.features.value=Array.isArray(p.features)?p.features.join(', '):p.features||'';f.elements.featured.checked=!!p.featured;state.pendingPhotos=p.photos||[];renderPhotoPreview();f.scrollIntoView({behavior:'smooth',block:'start'}); }
+  function fillForm(p) { const f=$('#property-form'); f.reset(); f.elements.id.value=p.id; ['title','description','category','region','price','area','bedrooms','suites','bathrooms','parking','payment','code','status'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); f.elements.features.value=propertyFeatures(p).join(', '); propertyFloorPlans(p).forEach(plan=>addFloorPlanRow(plan));f.elements.featured.checked=!!p.featured;state.pendingPhotos=p.photos||[];renderPhotoPreview();f.scrollIntoView({behavior:'smooth',block:'start'}); }
   function renderPhotoPreview() { $('#photo-preview').innerHTML=state.pendingPhotos.map((p,i)=>`<div><img src="${esc(p.url)}" alt="Foto ${i+1}"><button type="button" class="text-button" data-remove-photo="${i}">Remover</button><button type="button" class="text-button" data-cover-photo="${i}">${p.path===($('#property-form').elements.cover?.value||state.pendingPhotos[0]?.path)?'Capa':'Usar capa'}</button></div>`).join(''); $$('[data-remove-photo]').forEach(b=>b.onclick=()=>{state.pendingPhotos.splice(Number(b.dataset.removePhoto),1);renderPhotoPreview();});$$('[data-cover-photo]').forEach(b=>b.onclick=()=>{const chosen=state.pendingPhotos.splice(Number(b.dataset.coverPhoto),1)[0];state.pendingPhotos.unshift(chosen);renderPhotoPreview();}); }
   async function uploadPhotos(files, propertyId) { for(const file of files) { const path=`${propertyId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`; const r=await fetch(`${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/${config.supabase.bucket}/${path}`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`,'Content-Type':file.type,'x-upsert':'true'},body:file}); if(!r.ok)throw Error(`Falha ao enviar ${file.name}: ${await r.text()}`);state.pendingPhotos.push({path,url:mediaUrl(path)}); } state.pendingPhotos=state.pendingPhotos.filter(p=>!p.path.startsWith('local-')); }
   async function saveProperty(event) {
@@ -159,7 +185,7 @@
         price: Number(formData.get('price')) || null, area: Number(formData.get('area')) || null,
         bedrooms: Number(formData.get('bedrooms')) || null, suites: Number(formData.get('suites')) || null,
         bathrooms: Number(formData.get('bathrooms')) || null, parking: Number(formData.get('parking')) || null,
-        features: String(formData.get('features')).split(',').map(value => value.trim()).filter(Boolean),
+        features: { items:String(formData.get('features')).split(',').map(value => value.trim()).filter(Boolean), floor_plans:readFloorPlans() },
         payment: formData.get('payment'), code: formData.get('code'), status: formData.get('status'),
         featured: formData.get('featured') === 'on', photos: state.pendingPhotos, cover: state.pendingPhotos[0]?.path || null
       };
@@ -223,7 +249,7 @@
     });
     dialog.showModal();
   }
-  function setupAdmin() { $('#admin-login').onclick=login;$('#admin-login-form').addEventListener('submit',submitAdminLogin);$('#admin-login-cancel').onclick=()=>$('#admin-login-dialog').close();$('#admin-login-dialog').addEventListener('close',()=>{const form=$('#admin-login-form');if(!state.user)form.reset();});$('#admin-logout').onclick=async()=>{try{await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`}});}catch{}state.user=null;$('#property-form').hidden=true;await loadCatalog();};$('#property-form').addEventListener('submit',saveProperty);$('#property-form').elements.photos.addEventListener('change',e=>{for(const f of e.target.files){const url=URL.createObjectURL(f);state.pendingPhotos.push({path:`local-${Date.now()}-${f.name}`,url});}renderPhotoPreview();});$('#property-form').addEventListener('reset',()=>{state.pendingPhotos=[];setTimeout(renderPhotoPreview);});$('#preview-property').onclick=()=>{const f=$('#property-form');const fd=new FormData(f);const temp={id:'preview',title:fd.get('title')||'Pré-visualização',description:fd.get('description'),category:fd.get('category'),region:fd.get('region'),price:fd.get('price'),status:'published',photos:state.pendingPhotos,featured:fd.get('featured')==='on',bedrooms:fd.get('bedrooms'),area:fd.get('area'),features:String(fd.get('features')).split(',').filter(Boolean),payment:fd.get('payment')};state.properties.unshift(temp);openProperty('preview');state.properties.shift();}; }
+  function setupAdmin() { $('#admin-login').onclick=login;$('#admin-login-form').addEventListener('submit',submitAdminLogin);$('#admin-login-cancel').onclick=()=>$('#admin-login-dialog').close();$('#admin-login-dialog').addEventListener('close',()=>{const form=$('#admin-login-form');if(!state.user)form.reset();});$('#admin-logout').onclick=async()=>{try{await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`}});}catch{}state.user=null;$('#property-form').hidden=true;await loadCatalog();};$('#property-form').addEventListener('submit',saveProperty);$('#add-floor-plan').onclick=()=>addFloorPlanRow();$('#property-form').elements.photos.addEventListener('change',e=>{for(const f of e.target.files){const url=URL.createObjectURL(f);state.pendingPhotos.push({path:`local-${Date.now()}-${f.name}`,url});}renderPhotoPreview();});$('#property-form').addEventListener('reset',()=>{state.pendingPhotos=[];$('#floor-plans-editor').replaceChildren();setTimeout(renderPhotoPreview);});$('#preview-property').onclick=()=>{const f=$('#property-form');const fd=new FormData(f);const temp={id:'preview',title:fd.get('title')||'Pré-visualização',description:fd.get('description'),category:fd.get('category'),region:fd.get('region'),price:fd.get('price'),status:'published',photos:state.pendingPhotos,featured:fd.get('featured')==='on',bedrooms:fd.get('bedrooms'),area:fd.get('area'),features:{items:String(fd.get('features')).split(',').map(value=>value.trim()).filter(Boolean),floor_plans:readFloorPlans()},payment:fd.get('payment')};state.properties.unshift(temp);openProperty('preview');state.properties.shift();}; }
   function init() {
     initTheme();setupProfile();renderCategories();setupPasswordRecovery();
     $('#filter-toggle').onclick=()=>{const panel=$('#filters-panel');panel.hidden=!panel.hidden;$('#filter-toggle').setAttribute('aria-expanded',String(!panel.hidden));};

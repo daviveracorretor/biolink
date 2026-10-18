@@ -35,7 +35,7 @@ Na revisão do projeto, a configuração contém somente a chave publishable do 
 
 Para reconstruir este backend, execute `supabase/setup.sql` no SQL Editor e mantenha o UUID alinhado ao `adminUserId` em `config.js`.
 
-O painel suporta rascunho, publicação, reserva, venda, edição, exclusão confirmada, múltiplas fotos e escolha da capa (a primeira foto é a capa). A pré-visualização permite revisar antes de salvar. Essa configuração autoriza um único usuário. Para trocar o administrador, substitua o UUID nas políticas do SQL e em `config.js`.
+O painel suporta rascunho, publicação, reserva, venda, edição, exclusão confirmada, múltiplas fotos e escolha da capa (a primeira foto é a capa). Preço e área aceitam casas decimais. Imóveis na planta podem ter várias opções de planta com quartos, suítes e área; esses campos são opcionais. As opções são salvas junto aos diferenciais no campo JSON já existente, sem exigir alteração da tabela. A pré-visualização permite revisar antes de salvar. Essa configuração autoriza um único usuário. Para trocar o administrador, substitua o UUID nas políticas do SQL e em `config.js`.
 
 O código envia e consulta dados diretamente pela API REST e Storage do Supabase. Não libere escrita pública nem use a chave `service_role` no site. Os formulários de busca de compradores e captação são atalhos de WhatsApp, pois o GitHub Pages não pode transmitir formulários sem serviço externo. Analytics opcional aceita POST JSON no endpoint definido em `analyticsEndpoint`.
 
