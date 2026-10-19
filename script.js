@@ -3,7 +3,9 @@
   const config = window.SITE_CONFIG || {};
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
-  const state = { properties: [], category: config.categories?.[0] || null, gallery: [], galleryIndex: 0, galleryTitle: '', galleryRequestId: 0, pendingPhotos: [], coverPhoto: null, user: null };
+  const MAX_PROPERTY_PHOTO_SIZE = 20 * 1024 * 1024;
+  const ALLOWED_PROPERTY_PHOTO_TYPES = new Set(['image/jpeg','image/png','image/webp','image/avif','image/heic','image/heif']);
+  const state = { properties: [], category: config.categories?.[0] || null, gallery: [], galleryIndex: 0, galleryTitle: '', galleryRequestId: 0, pendingPhotos: [], coverPhoto: null, cardSlideshowTimers: [], user: null };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const hasSupabase = () => Boolean(config.supabase?.url && config.supabase?.anonKey);
   const wa = (message = 'Olá, Davi! Gostaria de conversar sobre imóveis em Cascavel.') => config.whatsapp ? `https://wa.me/${encodeURIComponent(config.whatsapp)}?text=${encodeURIComponent(message)}` : '#admin';
@@ -12,6 +14,12 @@
   const categoryAliases = { novos:'Novos', lancamentos:'Novos', cohapar:'Cohapar', 'minha casa minha vida':'Cohapar', lotes:'Lotes', terrenos:'Lotes', prontos:'Prontos', casas:'Prontos', 'apartamentos prontos':'Prontos' };
   const canonicalCategory = value => categoryAliases[categoryKey(value)] || (config.categories || []).find(category => categoryKey(category) === categoryKey(value)) || value || '';
   const propertyFeatures = p => Array.isArray(p?.features) ? p.features : (p?.features?.items || []);
+  function orderedPropertyPhotos(p) {
+    const photos = Array.isArray(p?.photos) ? [...p.photos] : [];
+    const coverIndex = photos.findIndex(photo => photo?.path && photo.path === p.cover);
+    if (coverIndex > 0) photos.unshift(photos.splice(coverIndex,1)[0]);
+    return photos;
+  }
   const propertyFloorPlans = p => Array.isArray(p?.features?.floor_plans) ? p.features.floor_plans : [];
   const decimal = value => Number(value).toLocaleString('pt-BR', { maximumFractionDigits:2 });
   const floorPlanLabel = plan => {
@@ -57,7 +65,10 @@
     });
   }
   function setupProfile() {
-    if (config.profileImage) $('#avatar').innerHTML = `<img src="${esc(config.profileImage)}" alt="Davi Vera" onerror="this.remove()">`;
+    if (config.profileImage) {
+      $('#avatar').innerHTML = `<img src="${esc(config.profileImage)}" alt="Davi Vera">`;
+      $('#avatar img').addEventListener('error', event => event.currentTarget.remove(), { once:true });
+    }
     const insta = $('#instagram-link');
     if (config.instagram) { insta.href = config.instagram; insta.target = '_blank'; insta.rel = 'noopener'; } else insta.hidden = true;
     ['whatsapp-link','simulate-link','buyer-link','owner-link','about-contact'].forEach(id => {
@@ -84,46 +95,93 @@
     const select = $('#property-form select[name="category"]'); if (select) select.innerHTML = (config.categories || []).map(c => `<option>${esc(c)}</option>`).join('');
   }
   function renderProperties() {
+    state.cardSlideshowTimers.forEach(clearInterval);
+    state.cardSlideshowTimers = [];
     const list = filteredProperties(); const grid = $('#property-grid');
     $('#listing-count').textContent = `${list.length} ${list.length === 1 ? 'imóvel' : 'imóveis'}`;
     $('#empty-state').hidden = list.length > 0; grid.innerHTML = list.map(p => {
-      const photos = (p.photos || []).filter(photo => photo?.url);
-      const coverIndex = Math.max(0, photos.findIndex(photo => photo.path === p.cover));
-      const cover = photos[coverIndex]?.url || p.cover_url || '';
+      const photos = orderedPropertyPhotos(p).filter(photo => photo?.url);
+      const initialIndex = 0;
+      const cover = photos[0]?.url || p.cover_url || '';
       const tags = [p.featured ? '<span class="badge">DESTAQUE</span>':'', p.status === 'reserved' ? '<span class="badge status">RESERVADO</span>':'', p.status === 'sold' ? '<span class="badge status">VENDIDO</span>':''].join('');
       const facts = [p.bedrooms ? `${esc(p.bedrooms)} quartos`:'', p.area ? `${decimal(p.area)} m²`:'', p.parking ? `${esc(p.parking)} vagas`:'' ].filter(Boolean).join(' · ');
-      const galleryControls = photos.length > 1 ? `<div class="card-gallery-controls" role="group" aria-label="Fotos de ${esc(p.title)}"><button type="button" class="card-gallery-arrow" data-gallery-step="-1" aria-label="Foto anterior de ${esc(p.title)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5.5-6.5 6.5 6.5 6.5"/></svg></button><span class="card-gallery-count" aria-live="polite">${coverIndex + 1} / ${photos.length}</span><button type="button" class="card-gallery-arrow" data-gallery-step="1" aria-label="Próxima foto de ${esc(p.title)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></svg></button></div>` : '';
-      return `<article class="property-card" tabindex="0" role="button" data-id="${esc(p.id)}"><div class="property-image">${cover ? `<img src="${esc(cover)}" alt="${esc(p.title)}" data-photo-index="${coverIndex}" loading="lazy">`:''}<div class="property-badges">${tags}</div>${galleryControls}</div><div class="property-copy"><p class="eyebrow">${esc(canonicalCategory(p.category) || 'IMÓVEL')}</p><h3>${esc(p.title)}</h3><p class="property-region">${esc(p.region || 'Cascavel, PR')}</p><p class="property-price">${money(p.price)}</p>${facts ? `<p class="property-meta">${facts}</p>`:''}</div></article>`;
+      const morePhotos = photos.length > 1 ? `<button type="button" class="card-more-photos" aria-label="Ver todas as ${photos.length} fotos de ${esc(p.title)}">Ver mais fotos <span aria-hidden="true">↗</span></button>` : '';
+      return `<article class="property-card" tabindex="0" role="button" data-id="${esc(p.id)}"><div class="property-image">${cover ? `<img src="${esc(cover)}" alt="${esc(p.title)}" data-photo-index="${initialIndex}" loading="lazy">`:''}<div class="property-badges">${tags}</div>${morePhotos}</div><div class="property-copy"><p class="eyebrow">${esc(canonicalCategory(p.category) || 'IMÓVEL')}</p><h3>${esc(p.title)}</h3><p class="property-region">${esc(p.region || 'Cascavel, PR')}</p><p class="property-price">${money(p.price)}</p>${facts ? `<p class="property-meta">${facts}</p>`:''}</div></article>`;
     }).join('');
-    $$('.property-card', grid).forEach(card => { card.onclick = () => openProperty(card.dataset.id); card.onkeydown = e => { if (e.target.closest('[data-gallery-step]')) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProperty(card.dataset.id); } }; });
-    $$('[data-gallery-step]', grid).forEach(button => button.onclick = event => {
-      event.preventDefault(); event.stopPropagation();
-      const card = button.closest('.property-card');
+    $$('.property-card', grid).forEach(card => { card.onclick = () => openProperty(card.dataset.id); card.onkeydown = e => { if (e.target.closest('.card-more-photos')) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProperty(card.dataset.id); } }; });
+    $$('.card-more-photos', grid).forEach(button => button.onclick = event => { event.preventDefault(); event.stopPropagation(); openProperty(button.closest('.property-card').dataset.id); });
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) $$('.property-card', grid).forEach(card => {
       const property = state.properties.find(item => String(item.id) === card.dataset.id);
-      const photos = (property?.photos || []).filter(photo => photo?.url);
-      if (photos.length < 2) return;
+      const photos = orderedPropertyPhotos(property).filter(photo => photo?.url).slice(0, 5);
       const image = $('.property-image img', card);
-      const index = (Number(image.dataset.photoIndex) + Number(button.dataset.galleryStep) + photos.length) % photos.length;
-      image.src = photos[index].url;
-      image.alt = `${property.title} — foto ${index + 1}`;
-      image.dataset.photoIndex = String(index);
-      $('.card-gallery-count', card).textContent = `${index + 1} / ${photos.length}`;
+      if (!image || photos.length < 2) return;
+      let paused = false;
+      card.addEventListener('mouseenter', () => { paused = true; });
+      card.addEventListener('mouseleave', () => { paused = false; });
+      card.addEventListener('focusin', () => { paused = true; });
+      card.addEventListener('focusout', event => { if (!card.contains(event.relatedTarget)) paused = false; });
+      state.cardSlideshowTimers.push(setInterval(() => {
+        if (paused || document.hidden || $('#property-modal').open || $('#image-modal').open) return;
+        const index = (Number(image.dataset.photoIndex) + 1) % photos.length;
+        image.classList.remove('card-photo-enter');
+        void image.offsetWidth;
+        image.src = photos[index].url;
+        image.alt = `${property.title} — foto ${index + 1}`;
+        image.dataset.photoIndex = String(index);
+        image.classList.add('card-photo-enter');
+      }, 4000));
     });
   }
   async function track(id) { if (!config.analyticsEndpoint) return; try { await fetch(config.analyticsEndpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({event:'property_view', property_id:id, timestamp:new Date().toISOString()}) }); } catch {} }
+  function modalPhotoMarkup(p) {
+    const photos = orderedPropertyPhotos(p).filter(photo => photo?.url);
+    if (!photos.length && p.cover_url) return `<div class="modal-photo-item"><img src="${esc(p.cover_url)}" alt="${esc(p.title)} — foto 1" data-photo-index="0" loading="lazy"></div>`;
+    return photos.map((photo,i) => `<div class="modal-photo-item"><img src="${esc(photo.url)}" alt="${esc(p.title)} — foto ${i+1}" data-photo-index="${i}" loading="lazy">${state.user && String(p.id) !== 'preview' && photos.length > 1 ? `<div class="modal-photo-order"><button type="button" data-modal-photo-move="${i}" data-move-to="${i-1}" ${i===0?'disabled':''} aria-label="Mover foto ${i+1} para antes">↑</button><button type="button" data-modal-photo-move="${i}" data-move-to="${i+1}" ${i===photos.length-1?'disabled':''} aria-label="Mover foto ${i+1} para depois">↓</button></div>`:''}</div>`).join('');
+  }
+  async function movePropertyPhoto(p, from, to) {
+    const current = orderedPropertyPhotos(p);
+    if (to < 0 || to >= current.length || from < 0 || from >= current.length || from === to) return;
+    const reordered = [...current];
+    const [photo] = reordered.splice(from, 1);
+    reordered.splice(to, 0, photo);
+    const previousCover = p.cover;
+    p.photos = reordered;
+    p.cover = reordered[0]?.path || null;
+    if (String(p.id) === 'preview') state.pendingPhotos = reordered;
+    const editingThisProperty = String($('#property-form').elements.id.value) === String(p.id);
+    if (editingThisProperty) { state.pendingPhotos = reordered; state.coverPhoto = p.cover; }
+    try {
+      if (String(p.id) !== 'preview') {
+        await api(`${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(p.id)}`, { method:'PATCH', headers:{Prefer:'return=minimal'}, body:JSON.stringify({photos:reordered,cover:p.cover}) });
+      }
+      renderProperties();
+      if (editingThisProperty || String(p.id) === 'preview') renderPhotoPreview();
+      openProperty(p.id);
+      if (state.user && String(p.id) !== 'preview') setAdminStatus(`Ordem das fotos de “${p.title}” salva.`);
+    } catch (error) {
+      p.photos = current;
+      p.cover = previousCover;
+      if (editingThisProperty) { state.pendingPhotos = current; state.coverPhoto = previousCover; renderPhotoPreview(); }
+      setAdminStatus(`Não foi possível salvar a ordem das fotos. ${error.message}`, true);
+      openProperty(p.id);
+    }
+  }
   function openProperty(id) {
     const p = state.properties.find(x => String(x.id) === String(id)); if (!p) return;
-    const photos = p.photos?.map(x => x.url).filter(Boolean) || (p.cover_url ? [p.cover_url] : []);
+    const propertyPhotos = orderedPropertyPhotos(p);
+    const photos = propertyPhotos.map(x => x.url).filter(Boolean);
+    if (!photos.length && p.cover_url) photos.push(p.cover_url);
     state.gallery = photos; state.galleryIndex = 0; state.galleryTitle = p.title; state.galleryRequestId++;
     const facts = [['Área',p.area && `${decimal(p.area)} m²`],['Quartos',p.bedrooms],['Suítes',p.suites],['Banheiros',p.bathrooms],['Vagas',p.parking]].filter(x=>x[1]);
     const features = propertyFeatures(p); const floorPlans = propertyFloorPlans(p);
     const url = new URL(location.href); url.hash = `imovel-${encodeURIComponent(p.id)}`;
     const contact = wa(`Olá, Davi! Tenho interesse no imóvel ${p.title}${p.code ? ` (código ${p.code})`:''}.`);
-    $('#modal-content').innerHTML = `<div class="modal-gallery">${photos.map((src,i)=>`<img src="${esc(src)}" alt="${esc(p.title)} — foto ${i+1}" data-photo-index="${i}" loading="lazy">`).join('')}</div><div class="modal-copy"><p class="eyebrow">${esc(canonicalCategory(p.category))} · ${esc(p.region || 'Cascavel, PR')}</p><h2>${esc(p.title)}</h2><p class="modal-price">${money(p.price)}</p>${p.code ? `<p>Código do anúncio: ${esc(p.code)}</p>`:''}<div class="modal-facts">${facts.map(x=>`<span>${esc(x[0])}: ${esc(x[1])}</span>`).join('')}</div><p>${esc(p.description || '')}</p>${features.length ? `<h3>Diferenciais</h3><p>${esc(features.join(' · '))}</p>`:''}${floorPlans.length ? `<h3>Plantas disponíveis</h3><ul class="modal-floor-plans">${floorPlans.map(floorPlanLabel).filter(Boolean).map(plan=>`<li>${esc(plan)}</li>`).join('')}</ul>`:''}${p.payment ? `<h3>Condições de pagamento</h3><p>${esc(p.payment)}</p>`:''}<div class="share-actions"><a class="button button-primary" href="${esc(contact)}" ${config.whatsapp?'target="_blank" rel="noopener"':''}>Falar sobre este imóvel ↗</a><button class="button button-secondary" id="copy-property-link">Copiar link</button><button class="button button-secondary" id="share-property">Compartilhar</button></div></div>`;
+    $('#modal-content').innerHTML = `<div class="modal-gallery">${modalPhotoMarkup(p)}</div>${state.user && String(p.id) !== 'preview' && p.photos?.length > 1 ? '<p class="photo-order-hint">Administrador: use ↑ e ↓ nas fotos para reorganizar. A ordem é salva automaticamente.</p>':''}<div class="modal-copy"><p class="eyebrow">${esc(canonicalCategory(p.category))} · ${esc(p.region || 'Cascavel, PR')}</p><h2>${esc(p.title)}</h2><p class="modal-price">${money(p.price)}</p>${p.code ? `<p>Código do anúncio: ${esc(p.code)}</p>`:''}<div class="modal-facts">${facts.map(x=>`<span>${esc(x[0])}: ${esc(x[1])}</span>`).join('')}</div><p>${esc(p.description || '')}</p>${features.length ? `<h3>Diferenciais</h3><p>${esc(features.join(' · '))}</p>`:''}${floorPlans.length ? `<h3>Plantas disponíveis</h3><ul class="modal-floor-plans">${floorPlans.map(floorPlanLabel).filter(Boolean).map(plan=>`<li>${esc(plan)}</li>`).join('')}</ul>`:''}${p.payment ? `<h3>Condições de pagamento</h3><p>${esc(p.payment)}</p>`:''}<div class="share-actions"><a class="button button-primary" href="${esc(contact)}" ${config.whatsapp?'target="_blank" rel="noopener"':''}>Falar sobre este imóvel ↗</a><button class="button button-secondary" id="copy-property-link">Copiar link</button><button class="button button-secondary" id="share-property">Compartilhar</button></div></div>`;
     $$('.modal-gallery img').forEach(img => img.onclick = () => showLarge(Number(img.dataset.photoIndex)));
+    $$('[data-modal-photo-move]').forEach(button => button.onclick = () => movePropertyPhoto(p, Number(button.dataset.modalPhotoMove), Number(button.dataset.moveTo)));
     $('#copy-property-link').onclick = async () => { await navigator.clipboard.writeText(url.href); $('#copy-property-link').textContent = 'Link copiado'; };
     $('#share-property').onclick = async () => { if (navigator.share) await navigator.share({title:p.title,url:url.href}); else { await navigator.clipboard.writeText(url.href); $('#share-property').textContent = 'Link copiado'; } };
-    $('#property-modal').showModal(); history.replaceState(null,'',url); track(p.id);
+    if (!$('#property-modal').open) $('#property-modal').showModal(); history.replaceState(null,'',url); track(p.id);
   }
   function showLarge(index) {
     if (!state.gallery.length) return;
@@ -191,9 +249,26 @@
     $('#clear-property-form').hidden = editing;
     $('#cancel-property-edit').hidden = !editing;
   }
-  function fillForm(p) { const f=$('#property-form'); f.reset(); f.elements.id.value=p.id; ['title','description','category','region','price','area','bedrooms','suites','bathrooms','parking','payment','code','status'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); f.elements.category.value=canonicalCategory(p.category); f.elements.features.value=propertyFeatures(p).join(', '); propertyFloorPlans(p).forEach(plan=>addFloorPlanRow(plan));f.elements.featured.checked=!!p.featured;state.pendingPhotos=p.photos||[];state.coverPhoto=p.cover||state.pendingPhotos[0]?.path||null;setPropertyFormMode(true,p.title);renderPhotoPreview();f.scrollIntoView({behavior:'smooth',block:'start'}); }
-  function renderPhotoPreview() { $('#photo-preview').innerHTML=state.pendingPhotos.map((p,i)=>`<div><img src="${esc(p.url)}" alt="Foto ${i+1}"><button type="button" class="text-button" data-remove-photo="${i}">Remover</button><button type="button" class="text-button" data-cover-photo="${i}">${p.path===state.coverPhoto?'Capa':'Usar capa'}</button></div>`).join(''); $$('[data-remove-photo]').forEach(b=>b.onclick=()=>{const [removed]=state.pendingPhotos.splice(Number(b.dataset.removePhoto),1);if(removed?.path===state.coverPhoto)state.coverPhoto=state.pendingPhotos[0]?.path||null;renderPhotoPreview();});$$('[data-cover-photo]').forEach(b=>b.onclick=()=>{state.coverPhoto=state.pendingPhotos[Number(b.dataset.coverPhoto)]?.path||null;renderPhotoPreview();}); }
-  async function uploadPhotos(files, propertyId) { for(const file of files) { const path=`${propertyId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`; const r=await fetch(`${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/${config.supabase.bucket}/${path}`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`,'Content-Type':file.type,'x-upsert':'true'},body:file}); if(!r.ok)throw Error(`Falha ao enviar ${file.name}: ${await r.text()}`);state.pendingPhotos.push({path,url:mediaUrl(path)});if(!state.coverPhoto)state.coverPhoto=path; } state.pendingPhotos=state.pendingPhotos.filter(p=>!p.path.startsWith('local-')); }
+  function fillForm(p) { const f=$('#property-form'); f.reset(); f.elements.id.value=p.id; ['title','description','category','region','price','area','bedrooms','suites','bathrooms','parking','payment','code','status'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); f.elements.category.value=canonicalCategory(p.category); f.elements.features.value=propertyFeatures(p).join(', '); propertyFloorPlans(p).forEach(plan=>addFloorPlanRow(plan));f.elements.featured.checked=!!p.featured;state.pendingPhotos=orderedPropertyPhotos(p);state.coverPhoto=state.pendingPhotos[0]?.path||null;setPropertyFormMode(true,p.title);renderPhotoPreview();f.scrollIntoView({behavior:'smooth',block:'start'}); }
+  function movePendingPhoto(from, to) {
+    if (to < 0 || to >= state.pendingPhotos.length || from < 0 || from >= state.pendingPhotos.length) return;
+    const [photo] = state.pendingPhotos.splice(from, 1);
+    state.pendingPhotos.splice(to, 0, photo);
+    state.coverPhoto = state.pendingPhotos[0]?.path || null;
+    renderPhotoPreview();
+  }
+  function renderPhotoPreview() {
+    $('#photo-preview').innerHTML = `${state.pendingPhotos.length>1?'<p class="photo-order-hint">Use as setas para mudar a ordem das fotos. A primeira será a capa e aparecerá primeiro no site.</p>':''}${state.pendingPhotos.map((p,i) => `<div class="photo-preview-item"><img src="${esc(p.url)}" alt="Foto ${i+1}"><span class="photo-order-label">Foto ${i+1}${p.path===state.coverPhoto?' · Capa':''}</span><div class="photo-order-actions"><button type="button" data-preview-photo-move="${i}" data-move-to="${i-1}" ${i===0?'disabled':''} aria-label="Mover foto ${i+1} para antes">↑</button><button type="button" data-preview-photo-move="${i}" data-move-to="${i+1}" ${i===state.pendingPhotos.length-1?'disabled':''} aria-label="Mover foto ${i+1} para depois">↓</button><button type="button" data-remove-photo="${i}">Remover</button></div><button type="button" class="text-button" data-cover-photo="${i}">Usar como capa</button></div>`).join('')}`;
+    $$('[data-remove-photo]').forEach(button => button.onclick = () => { const [removed] = state.pendingPhotos.splice(Number(button.dataset.removePhoto),1); if (removed?.path === state.coverPhoto) state.coverPhoto = state.pendingPhotos[0]?.path || null; renderPhotoPreview(); });
+    $$('[data-cover-photo]').forEach(button => button.onclick = () => movePendingPhoto(Number(button.dataset.coverPhoto),0));
+    $$('[data-preview-photo-move]').forEach(button => button.onclick = () => movePendingPhoto(Number(button.dataset.previewPhotoMove),Number(button.dataset.moveTo)));
+  }
+  async function uploadPhotos(files, propertyId) {
+    for (const file of files) {
+      if (!ALLOWED_PROPERTY_PHOTO_TYPES.has(file.type)) throw Error(`Formato não permitido para “${file.name}”. Use JPEG, PNG, WebP, AVIF, HEIC ou HEIF.`);
+      if (file.size > MAX_PROPERTY_PHOTO_SIZE) throw Error(`“${file.name}” excede o limite de 20 MB por foto.`);
+    }
+    for(const file of files) { const path=`${propertyId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`; const r=await fetch(`${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/${config.supabase.bucket}/${path}`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`,'Content-Type':file.type,'x-upsert':'true'},body:file}); if(!r.ok)throw Error(`Falha ao enviar ${file.name}: ${await r.text()}`);state.pendingPhotos.push({path,url:mediaUrl(path)});if(!state.coverPhoto)state.coverPhoto=path; } state.pendingPhotos=state.pendingPhotos.filter(p=>!p.path.startsWith('local-')); }
   async function saveProperty(event) {
     event.preventDefault();
     const form = event.currentTarget;

@@ -126,7 +126,7 @@
 .spotlight .button-light{background:var(--surface);color:var(--ink)}
 
 /* Unified cool-neutral and champagne palette for the refreshed themes. */
-:root{color-scheme:light;--bg:#F8F9FA;--surface:#FCFDFE;--surface-2:#EEF1F5;--ink:#24283A;--muted:#697084;--border:#E0E4EA;--accent:#80652F;--accent-dark:#685228;--accent-foreground:#fff;--shadow:0 16px 50px #191c2710;--spotlight-bg:#2A3043;--spotlight-bg-end:#383E53;--spotlight-ink:#F6F7FA;--spotlight-muted:#D4D7E0;--spotlight-highlight:#E4CB83}
+:root{color-scheme:light;--bg:#F8F9FA;--surface:#FFFFFF;--surface-2:#EFF3F1;--ink:#202B30;--muted:#68777A;--border:#DDE6E2;--accent:#356B63;--accent-dark:#28574F;--accent-foreground:#fff;--shadow:0 16px 50px #1b302b12;--spotlight-bg:#28584F;--spotlight-bg-end:#1D4943;--spotlight-ink:#F7FAF8;--spotlight-muted:#D9E7E2;--spotlight-highlight:#D9C28C}
 [data-theme="dark"]{color-scheme:dark;--bg:#191C27;--surface:#222633;--surface-2:#2D3241;--ink:#F1F2F6;--muted:#B1B6C5;--border:#3A4050;--accent:#D6B66A;--accent-dark:#E7CC8A;--accent-foreground:#191C27;--shadow:0 16px 50px #080a12a6;--spotlight-bg:#252A3B;--spotlight-bg-end:#30364A;--spotlight-ink:#F1F2F6;--spotlight-muted:#C2C6D2;--spotlight-highlight:#E5C979}
 .button-primary{color:var(--accent-foreground)}
 .category-chip.active,.category-chip.active:hover{color:var(--accent-foreground);box-shadow:0 5px 14px color-mix(in srgb,var(--accent) 28%,transparent)}
@@ -144,10 +144,22 @@
 .card-gallery-controls{background:#191c27d9}
 .property-card:hover .card-gallery-controls,.card-gallery-controls:focus-within{background:#191c27ed}
 
+/* Refined light palette: cool ice surfaces, deep botanical green and soft champagne. */
+:root:not([data-theme="dark"]) .avatar{outline-color:var(--accent)}
+:root:not([data-theme="dark"]) .avatar:hover{box-shadow:0 0 0 5px var(--bg),0 8px 22px #263d371c}
+:root:not([data-theme="dark"]) .social-icon{background:var(--surface);border-color:var(--border);color:var(--ink)}
+:root:not([data-theme="dark"]) .topbar .theme-toggle{background:var(--surface);color:var(--ink);border-color:var(--border)}
+:root:not([data-theme="dark"]) .category-chip{background:var(--surface);border-color:var(--border);color:var(--ink)}
+:root:not([data-theme="dark"]) .category-chip.active,:root:not([data-theme="dark"]) .category-chip.active:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+:root:not([data-theme="dark"]) .contact-card-alt{background:var(--surface-2);border-color:var(--border)}
+:root:not([data-theme="dark"]) .badge{background:var(--surface);color:var(--ink)}
+:root:not([data-theme="dark"]) .badge.status{background:var(--accent);color:#fff}
+:root:not([data-theme="dark"]) .spotlight .button-light{background:#F8F5EC;color:#29352F}
+
 /* Compact profile header with an interactive portrait and a short about dialog. */
 .profile{padding-top:18px}
 .avatar{display:grid;place-items:center;padding:0;cursor:pointer;transition:transform .2s,box-shadow .2s}
-.avatar:hover{transform:translateY(-2px);box-shadow:0 0 0 5px #edf2f6,0 8px 22px #14262d24}
+.avatar:hover{transform:translateY(-2px);box-shadow:0 0 0 5px var(--bg),0 8px 22px #263d371c}
 .avatar:focus-visible{outline:3px solid var(--accent);outline-offset:5px}
 .profile h1{font-family:'Google Sans Flex','Satoshi',sans-serif;font-size:clamp(23px,6vw,27px);font-weight:300;line-height:1.15;letter-spacing:.08em;text-transform:uppercase;margin:13px 0 0}
 .social-actions{margin-top:13px}
@@ -203,3 +215,28 @@ button svg{display:block;flex:0 0 auto;width:1em;height:1em}
 .card-gallery-arrow svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .card-gallery-count{min-width:38px;color:#ffffffed;text-align:center;font-size:10px;font-weight:600;line-height:1.3;font-variant-numeric:tabular-nums}
 .property-form-mode{margin:16px 0 0;padding:11px 13px;border-left:3px solid var(--accent);border-radius:4px;background:var(--surface-2);color:var(--ink);font-size:13px;font-weight:600}
+
+/* Automatic card slideshow and clear access to the complete property gallery. */
+.property-image>img.card-photo-enter{animation:card-photo-enter .7s cubic-bezier(.22,1,.36,1)}
+@keyframes card-photo-enter{from{opacity:.45;transform:scale(1.015)}to{opacity:1;transform:scale(1)}}
+.card-more-photos{position:absolute;z-index:2;left:50%;bottom:12px;transform:translateX(-50%);display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:34px;padding:0 14px;border:1px solid #ffffff70;border-radius:999px;background:#191c27c9;color:#fff;font-size:11px;font-weight:600;white-space:nowrap;backdrop-filter:blur(10px);box-shadow:0 4px 14px #0002;transition:background .18s,transform .18s}
+.card-more-photos:hover{transform:translateX(-50%) translateY(-2px);background:#191c27ed}
+.modal-gallery{align-items:flex-start}
+.modal-photo-item{position:relative;flex:0 0 70%;min-width:0}
+.modal-gallery .modal-photo-item img{display:block;width:100%;min-width:0;max-width:100%;object-fit:cover}
+.modal-photo-order{position:absolute;right:9px;bottom:9px;display:flex;gap:5px;padding:4px;border:1px solid #ffffff60;border-radius:10px;background:#191c27d9;backdrop-filter:blur(8px)}
+.modal-photo-order button,.photo-order-actions button{width:30px;height:30px;padding:0;border:1px solid #ffffff35;border-radius:8px;background:#ffffff12;color:#fff;font-size:16px;line-height:1}
+.modal-photo-order button:hover,.photo-order-actions button:hover{background:#ffffff2b}
+.modal-photo-order button:disabled,.photo-order-actions button:disabled{opacity:.35;cursor:not-allowed}
+.photo-order-hint{margin:-10px 0 18px;color:var(--muted);font-size:11px}
+#photo-preview .photo-order-hint{flex:0 0 100%;margin:0;color:var(--muted)}
+.photo-preview{flex-wrap:wrap;align-items:flex-start}
+.photo-preview-item{display:grid;justify-items:center;gap:5px;min-width:120px;padding:8px;border:1px solid var(--border);border-radius:9px;background:var(--surface)}
+.photo-preview-item img{width:106px;height:76px}
+.photo-order-label{color:var(--muted);font-size:10px;font-weight:600}
+.photo-order-actions{display:flex;align-items:center;justify-content:center;gap:4px}
+.photo-order-actions button{width:27px;height:27px;color:var(--ink);border-color:var(--border);background:var(--surface-2);font-size:13px}
+.photo-order-actions button:last-child{width:auto;padding:0 7px;color:#9a5047;font-size:10px}
+.photo-preview-item>[data-cover-photo]{font-size:10px;padding:3px 7px}
+@media(max-width:620px){.modal-photo-item{flex-basis:84%}.card-more-photos{bottom:9px;min-height:32px}}
+@media(prefers-reduced-motion:reduce){.property-image>img.card-photo-enter{animation:none}}

@@ -27,6 +27,12 @@ O projeto Supabase `Davi Vera Linkbio` já está conectado. A tabela `properties
 
 O UUID é um identificador público, não uma credencial. A chave `anonKey` em `config.js` é a chave publishable, destinada ao navegador; ela não concede privilégios administrativos por si só. As políticas RLS do banco e Storage limitam inserção, edição, exclusão e upload ao UUID do administrador. O próprio código do navegador pode ser lido por qualquer visitante: não coloque `service_role`, senhas ou outras chaves secretas no repositório.
 
+### Endurecimento de segurança (revisão local)
+
+As alterações de segurança incluem uma CSP entregue por `<meta>` (scripts apenas do próprio site; fontes, imagens e conexões limitadas aos serviços usados), política `no-referrer`, revogação de privilégios SQL desnecessários e limite de upload de 20 MiB com lista de tipos de imagem. O arquivo `supabase/migrations/20261019_harden_access_and_uploads.sql` é uma migração revisável para o projeto já existente. Ela **não foi aplicada ao Supabase**; revise e execute manualmente no SQL Editor quando decidir. O `setup.sql` também foi atualizado para instalações novas/recriadas.
+
+O bucket `property-photos` continua público para que as fotos dos anúncios carreguem no site estático. A migração remove a listagem anônima de metadados, mas quem já conhece a URL de um objeto ainda pode abrir a foto. Portanto, não use esse bucket para documentos nem imagens que precisem ficar confidenciais; proteger fotos de rascunhos por completo exige separar armazenamento privado e público ou adicionar uma função de servidor. A CSP em `<meta>` não consegue configurar cabeçalhos HTTP como `frame-ancestors`, `X-Content-Type-Options` ou HSTS; GitHub Pages controla os cabeçalhos do servidor.
+
 ### Segurança e arquivos `.env`
 
 Este site é estático e publicado pelo GitHub Pages. Portanto, qualquer valor incluído no HTML, JavaScript, arquivos gerados ou requisições do navegador fica visível ao público. Um `.env` não esconderia valores usados pelo front-end; variáveis `.env` só protegem segredos quando lidas exclusivamente por um servidor ou durante um build que não publique o segredo no artefato final. O `.gitignore` ignora arquivos `.env` locais para reduzir o risco de adicioná-los ao Git por engano.

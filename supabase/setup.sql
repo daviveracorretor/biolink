@@ -25,6 +25,7 @@ create table if not exists public.properties (
 );
 
 alter table public.properties enable row level security;
+revoke all privileges on table public.properties from public, anon, authenticated;
 grant select on public.properties to anon, authenticated;
 grant insert, update, delete on public.properties to authenticated;
 
@@ -52,14 +53,21 @@ create policy "Only site owner deletes listings"
   on public.properties for delete to authenticated
   using (auth.uid() = 'd4f4490d-96f2-406b-bced-6f0a27d31116'::uuid);
 
-insert into storage.buckets (id, name, public)
-values ('property-photos', 'property-photos', true)
-on conflict (id) do update set public = excluded.public;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'property-photos', 'property-photos', true, 20971520,
+  array['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/heic', 'image/heif']::text[]
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "Visitors read property photos" on storage.objects;
-create policy "Visitors read property photos"
-  on storage.objects for select to anon, authenticated
-  using (bucket_id = 'property-photos');
+drop policy if exists "Only site owner reads property photo metadata" on storage.objects;
+create policy "Only site owner reads property photo metadata"
+  on storage.objects for select to authenticated
+  using (bucket_id = 'property-photos' and auth.uid() = 'd4f4490d-96f2-406b-bced-6f0a27d31116'::uuid);
 
 drop policy if exists "Only site owner uploads property photos" on storage.objects;
 create policy "Only site owner uploads property photos"
