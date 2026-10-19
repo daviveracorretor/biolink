@@ -118,7 +118,7 @@
   function renderProperties() {
     state.cardSlideshowCleanups.forEach(cleanup => cleanup());
     state.cardSlideshowCleanups = [];
-    const list = filteredProperties(); const grid = $('#property-grid');
+    const list = filteredProperties().sort((a,b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured))); const grid = $('#property-grid');
     $('#listing-count').textContent = `${list.length} ${list.length === 1 ? 'imóvel' : 'imóveis'}`;
     $('#empty-state').hidden = list.length > 0; grid.innerHTML = list.map(p => {
       const photos = orderedPropertyPhotos(p).filter(photo => photo?.url);
