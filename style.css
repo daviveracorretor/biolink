@@ -280,6 +280,37 @@ button svg{display:block;flex:0 0 auto;width:1em;height:1em}
 .cohapar-info-modal .cohapar-notice strong{color:var(--ink)}
 @media(max-width:620px){.property-category-badge{top:10px;right:10px;min-height:25px;padding:0 9px;font-size:9px}.category-info{margin-top:12px}.cohapar-info-trigger{width:100%;padding:11px 13px}.cohapar-info-modal{padding:23px}.cohapar-info-modal h2{font-size:21px}}
 
+/* Brighter pastel category palette shared by the public filter chips and card badges. */
+.category-chip{transition:transform .18s,box-shadow .18s,border-color .18s,background .18s}
+.category-chip:hover{transform:translateY(-1px)}
+.category-chip-all{background:var(--surface);color:var(--ink)}
+.category-chip.category-chip-planta{background:#eadfff;border-color:#d9c4fb;color:#503571}
+.category-chip.category-chip-cohapar{background:#fff0b8;border-color:#f4df8d;color:#715500}
+.category-chip.category-chip-lotes{background:#d9f1d8;border-color:#bce4ba;color:#315f39}
+.category-chip.category-chip-prontos{background:#ffddd3;border-color:#f5c4b4;color:#804737}
+.category-chip.category-chip-planta.active{background:#ddc9fa;border-color:#a77bdc;color:#422963;box-shadow:0 0 0 2px #ddc9fa70}
+.category-chip.category-chip-cohapar.active{background:#ffe798;border-color:#d9bd59;color:#5c4500;box-shadow:0 0 0 2px #ffe79878}
+.category-chip.category-chip-lotes.active{background:#c7eac5;border-color:#86c184;color:#264f2e;box-shadow:0 0 0 2px #c7eac578}
+.category-chip.category-chip-prontos.active{background:#ffcbbb;border-color:#e39b83;color:#6c3628;box-shadow:0 0 0 2px #ffcbbb78}
+.property-category-badge.category-planta{--badge-bg:#eadfff;--badge-ink:#503571}
+.property-category-badge.category-cohapar{--badge-bg:#fff0b8;--badge-ink:#715500}
+.property-category-badge.category-lotes{--badge-bg:#d9f1d8;--badge-ink:#315f39}
+.property-category-badge.category-prontos{--badge-bg:#ffddd3;--badge-ink:#804737}
+.admin-property-tools{display:grid;grid-template-columns:minmax(190px,1.4fr) minmax(140px,.8fr) minmax(140px,.8fr);gap:8px;align-items:end;margin:17px 0 10px}
+.admin-property-tools[hidden]{display:none}
+.admin-property-tools label{grid-column:1/-1;margin-bottom:-5px;color:var(--muted);font-size:11px}
+.admin-property-tools input,.admin-property-tools select{min-width:0;width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);font:400 12px/1.4 var(--sans)}
+.admin-row{gap:12px;flex-wrap:wrap;border-radius:9px}
+.admin-row-main{display:grid;gap:2px;min-width:150px;flex:1}
+.admin-row-main strong{font:600 13px/1.35 var(--sans);color:var(--ink)}
+.admin-row-main>span{color:var(--muted);font:400 10px/1.45 var(--sans)}
+.admin-row-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:2px}
+.admin-row-actions .text-button{margin:0;padding:5px 7px;text-decoration:none}
+.admin-row-actions [data-copy-code]{color:var(--accent);font-weight:700}
+.admin-list-empty{margin:0;padding:18px 12px;color:var(--muted);font-size:12px;text-align:center}
+.field-hint{display:block;margin:1px 0 0;color:var(--muted);font-size:10px;line-height:1.4}
+@media(max-width:620px){.admin-property-tools{grid-template-columns:1fr 1fr}.admin-property-tools label{grid-column:1/-1}.admin-property-tools input{grid-column:1/-1}.admin-row-actions{justify-content:flex-start;width:100%;border-top:1px solid var(--border);padding-top:5px}}
+
 /* Fast touch-friendly drag ordering for the admin photo galleries. */
 .photo-preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:10px;align-items:stretch}
 .photo-preview-item{position:relative;min-width:0;padding:9px 8px 8px;transition:transform .16s,border-color .16s,box-shadow .16s,opacity .16s}

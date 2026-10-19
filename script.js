@@ -12,7 +12,9 @@
   const wa = (message = 'Olá, Davi! Gostaria de conversar sobre imóveis em Cascavel.') => config.whatsapp ? `https://wa.me/${encodeURIComponent(config.whatsapp)}?text=${encodeURIComponent(message)}` : '#admin';
   const money = n => n ? `A partir de ${Number(n).toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:2 })}` : 'Consulte condições';
   const categoryKey = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
-  const categoryAliases = { novos:'Novos', lancamentos:'Novos', cohapar:'Cohapar', 'minha casa minha vida':'Cohapar', lotes:'Lotes', terrenos:'Lotes', prontos:'Prontos', casas:'Prontos', 'apartamentos prontos':'Prontos' };
+  const categoryAliases = { planta:'Planta', novos:'Planta', lancamento:'Planta', lancamentos:'Planta', cohapar:'Cohapar', mcmv:'Cohapar', 'minha casa minha vida':'Cohapar', lotes:'Lotes', terrenos:'Lotes', prontos:'Prontos', casas:'Prontos', 'apartamentos prontos':'Prontos' };
+  const categoryCodePrefixes = { planta:'PL', novos:'PL', lancamentos:'PL', cohapar:'CH', 'minha casa minha vida':'CH', lotes:'LT', terrenos:'LT', prontos:'PR', casas:'PR', 'apartamentos prontos':'PR' };
+  const categoryCodePrefix = category => categoryCodePrefixes[categoryKey(category)] || '';
   const canonicalCategory = value => categoryAliases[categoryKey(value)] || (config.categories || []).find(category => categoryKey(category) === categoryKey(value)) || value || '';
   const propertyFeatures = p => Array.isArray(p?.features) ? p.features : (p?.features?.items || []);
   function orderedPropertyPhotos(p) {
@@ -91,7 +93,7 @@
     const available = (config.categories || []).filter(category => state.properties.some(property => visibleStatuses.has(property.status) && canonicalCategory(property.category) === category));
     if (state.category !== ALL_CATEGORIES && !available.includes(state.category)) state.category = available[0] || null;
     host.hidden = available.length === 0;
-    host.innerHTML = available.length ? [`<button class="category-chip ${state.category === ALL_CATEGORIES ? 'active':''}" type="button" data-category="${ALL_CATEGORIES}" aria-pressed="${state.category === ALL_CATEGORIES}">${state.category === ALL_CATEGORIES ? '<span class="category-check" aria-hidden="true">✓</span>':''}Todos</button>`, ...available.map(c => `<button class="category-chip ${state.category === c ? 'active':''}" type="button" data-category="${esc(c)}" aria-pressed="${state.category === c}">${state.category === c ? '<span class="category-check" aria-hidden="true">✓</span>':''}${esc(c)}</button>`)].join('') : '';
+    host.innerHTML = available.length ? [`<button class="category-chip category-chip-all ${state.category === ALL_CATEGORIES ? 'active':''}" type="button" data-category="${ALL_CATEGORIES}" aria-pressed="${state.category === ALL_CATEGORIES}">${state.category === ALL_CATEGORIES ? '<span class="category-check" aria-hidden="true">✓</span>':''}Todos</button>`, ...available.map(c => `<button class="category-chip category-chip-${categoryKey(c).replace(/[^a-z0-9]+/g, '-')} ${state.category === c ? 'active':''}" type="button" data-category="${esc(c)}" aria-pressed="${state.category === c}">${state.category === c ? '<span class="category-check" aria-hidden="true">✓</span>':''}${esc(c)}</button>`)].join('') : '';
     host.onclick = e => { const b = e.target.closest('[data-category]'); if (b) { state.category = b.dataset.category; renderCategories(); renderProperties(); } };
     const info = $('#category-info');
     if (info) {
@@ -99,6 +101,15 @@
       info.innerHTML = state.category === 'Cohapar' ? '<button class="cohapar-info-trigger" type="button" aria-haspopup="dialog" aria-controls="cohapar-info-modal"><span class="cohapar-info-icon" aria-hidden="true">i</span><span><strong>Conheça o Cohapar</strong><small>Entenda como funciona e veja o que é necessário.</small></span><span class="cohapar-info-arrow" aria-hidden="true">↗</span></button>' : '';
     }
     const select = $('#property-form select[name="category"]'); if (select) select.innerHTML = (config.categories || []).map(c => `<option>${esc(c)}</option>`).join('');
+  }
+  function updatePropertyCodeHint() {
+    const form = $('#property-form');
+    if (!form) return;
+    const code = form.elements.code.value.trim();
+    const prefix = categoryCodePrefix(form.elements.category.value);
+    $('#property-code-hint').textContent = code
+      ? `Código ${code} preservado neste imóvel.`
+      : prefix ? `Formato do código: ${prefix}-001, ${prefix}-002… O número é atribuído ao salvar.` : 'Escolha uma categoria para ver o formato do código.';
   }
   function renderProperties() {
     state.cardSlideshowCleanups.forEach(cleanup => cleanup());
@@ -396,7 +407,16 @@
   async function submitAdminLogin(event) { event.preventDefault(); const form=event.currentTarget; const email=form.elements.email.value.trim(); const password=form.elements.password.value; const error=$('#admin-login-error'); const submit=form.querySelector('[type="submit"]'); error.textContent='Verificando acesso…'; submit.disabled=true; try { const r=await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:config.supabase.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email,password})}); if(!r.ok)throw Error('Credenciais inválidas ou serviço indisponível.'); const session=await r.json(); if(!config.supabase.adminUserId || session.user?.id?.toLowerCase()!==config.supabase.adminUserId.toLowerCase()){await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${session.access_token}`}}).catch(()=>{});throw Error('Esta conta não está autorizada a administrar o site.');} session.expires_at=session.expires_at || Math.floor(Date.now()/1000)+Number(session.expires_in||3600); state.user=session; form.reset(); $('#admin-login-dialog').close(); $('#admin-login').hidden=true; $('#admin-logout').hidden=false; $('#property-form').hidden=false; await loadCatalog(); }catch(e){error.textContent=e.message;}finally{form.elements.password.value='';submit.disabled=false;} }
   function renderAdmin() {
     $('#admin-login').hidden=!hasSupabase()||!config.supabase.adminUserId||!!state.user; $('#admin-logout').hidden=!state.user; $('#property-form').hidden=!state.user;
-    $('#admin-list').innerHTML=state.user?state.properties.map(p=>`<div class="admin-row"><span>${esc(p.title)} · ${esc(p.status)}</span><span><button class="text-button" data-edit="${esc(p.id)}">Editar</button><button class="text-button" data-delete="${esc(p.id)}">Excluir</button></span></div>`).join(''):'';
+    const tools = $('#admin-property-tools');
+    tools.hidden = !state.user;
+    const categoryFilter = $('#admin-category-filter');
+    if (categoryFilter.options.length < 2) categoryFilter.innerHTML = '<option value="">Todas as categorias</option>' + (config.categories || []).map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    const query = $('#admin-search').value.trim().toLocaleLowerCase('pt-BR');
+    const selectedCategory = categoryFilter.value;
+    const selectedStatus = $('#admin-status-filter').value;
+    const matches = state.properties.filter(p => (!query || `${p.title||''} ${p.code||''}`.toLocaleLowerCase('pt-BR').includes(query)) && (!selectedCategory || canonicalCategory(p.category) === selectedCategory) && (!selectedStatus || p.status === selectedStatus));
+    $('#admin-list').innerHTML=state.user?(matches.length?matches.map(p=>`<div class="admin-row"><div class="admin-row-main"><strong>${esc(p.title)}</strong><span>${esc(canonicalCategory(p.category)||'Imóvel')} · ${esc(p.status)} · ${esc(p.code||'Sem código')}</span></div><span class="admin-row-actions"><button class="text-button" data-copy-code="${esc(p.id)}">Copiar código</button><button class="text-button" data-edit="${esc(p.id)}">Editar</button><button class="text-button" data-delete="${esc(p.id)}">Excluir</button></span></div>`).join(''):'<p class="admin-list-empty">Nenhum imóvel corresponde a essa busca.</p>'):'';
+    $$('[data-copy-code]').forEach(b=>b.onclick=async()=>{const p=state.properties.find(item=>String(item.id)===b.dataset.copyCode);if(!p?.code){setAdminStatus('Este imóvel ainda não tem código.',true);return;}try{await navigator.clipboard.writeText(p.code);setAdminStatus(`Código ${p.code} copiado.`);}catch{setAdminStatus('Não foi possível copiar o código neste navegador.',true);}});
     $$('[data-edit]').forEach(b=>b.onclick=()=>fillForm(state.properties.find(p=>String(p.id)===b.dataset.edit)));
     $$('[data-delete]').forEach(b=>b.onclick=async()=>{const p=state.properties.find(x=>String(x.id)===b.dataset.delete);if(!confirm(`Excluir “${p.title}”? Esta ação não pode ser desfeita.`))return;try{await api(`${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(p.id)}`,{method:'DELETE'});await loadCatalog();}catch(e){setAdminStatus(`Falha ao excluir: ${e.message}`,true);}});
   }
@@ -407,7 +427,7 @@
     $('#clear-property-form').hidden = editing;
     $('#cancel-property-edit').hidden = !editing;
   }
-  function fillForm(p) { const f=$('#property-form'); f.reset(); f.elements.id.value=p.id; ['title','description','category','region','price','area','bedrooms','suites','bathrooms','parking','payment','code','status'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); f.elements.category.value=canonicalCategory(p.category); f.elements.features.value=propertyFeatures(p).join(', '); propertyFloorPlans(p).forEach(plan=>addFloorPlanRow(plan));f.elements.featured.checked=!!p.featured;state.pendingPhotos=orderedPropertyPhotos(p);state.coverPhoto=state.pendingPhotos[0]?.path||null;setPropertyFormMode(true,p.title);renderPhotoPreview();f.scrollIntoView({behavior:'smooth',block:'start'}); }
+  function fillForm(p) { const f=$('#property-form'); f.reset(); f.elements.id.value=p.id; ['title','description','category','region','price','area','bedrooms','suites','bathrooms','parking','payment','status'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); f.elements.code.value=p.code??''; f.elements.category.value=canonicalCategory(p.category); f.elements.features.value=propertyFeatures(p).join(', '); propertyFloorPlans(p).forEach(plan=>addFloorPlanRow(plan));f.elements.featured.checked=!!p.featured;state.pendingPhotos=orderedPropertyPhotos(p);state.coverPhoto=state.pendingPhotos[0]?.path||null;setPropertyFormMode(true,p.title);updatePropertyCodeHint();renderPhotoPreview();f.scrollIntoView({behavior:'smooth',block:'start'}); }
   function movePendingPhoto(from, to) {
     if (to < 0 || to >= state.pendingPhotos.length || from < 0 || from >= state.pendingPhotos.length) return;
     const [photo] = state.pendingPhotos.splice(from, 1);
@@ -457,17 +477,20 @@
         bedrooms: Number(formData.get('bedrooms')) || null, suites: Number(formData.get('suites')) || null,
         bathrooms: Number(formData.get('bathrooms')) || null, parking: Number(formData.get('parking')) || null,
         features: { items:String(formData.get('features')).split(',').map(value => value.trim()).filter(Boolean), floor_plans:readFloorPlans() },
-        payment: formData.get('payment'), code: formData.get('code'), status: formData.get('status'),
+        payment: formData.get('payment'), code: formData.get('id') ? formData.get('code') : undefined, status: formData.get('status'),
         featured: formData.get('featured') === 'on', photos: state.pendingPhotos, cover: state.coverPhoto || state.pendingPhotos[0]?.path || null
       };
       if (formData.get('id')) {
         await api(`${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(id)}`, { method:'PATCH', headers:{Prefer:'return=minimal'}, body:JSON.stringify(payload) });
       } else {
-        await api(encodeURIComponent(config.supabase.table), { method:'POST', headers:{Prefer:'return=minimal'}, body:JSON.stringify({id,...payload}) });
+        const inserted = await api(encodeURIComponent(config.supabase.table), { method:'POST', headers:{Prefer:'return=representation'}, body:JSON.stringify({id,...payload}) });
+        payload.code = inserted?.[0]?.code || '';
       }
-      setAdminStatus(`“${payload.title}” salvo como ${payload.status}.`);
       form.reset(); clearPendingPhotos(); setPropertyFormMode(false); renderPhotoPreview();
       await loadCatalog();
+      const savedProperty = state.properties.find(property => String(property.id) === String(id));
+      const savedCode = savedProperty?.code || payload.code;
+      setAdminStatus(`“${payload.title}” salvo como ${payload.status}.${savedCode ? ` Código ${savedCode}.` : ' O código será exibido na lista após a próxima atualização.'}`);
     } catch (error) {
       setAdminStatus(`Não foi possível salvar o imóvel. ${error.message}`, true);
     } finally {
@@ -536,6 +559,10 @@
       state.user=null;$('#property-form').reset();clearPendingPhotos();setPropertyFormMode(false);$('#property-form').hidden=true;await loadCatalog();
     };
     $('#property-form').addEventListener('submit',saveProperty);
+    $('#property-form').elements.category.addEventListener('change',updatePropertyCodeHint);
+    $('#admin-search').addEventListener('input',renderAdmin);
+    $('#admin-category-filter').addEventListener('change',renderAdmin);
+    $('#admin-status-filter').addEventListener('change',renderAdmin);
     $('#add-floor-plan').onclick=()=>addFloorPlanRow();
     const photoInput=$('#property-form').elements.photos;
     $('#add-property-photos').onclick=()=>photoInput.click();
@@ -552,7 +579,7 @@
     $('#property-form').addEventListener('reset',()=>{
       clearPendingPhotos();
       $('#floor-plans-editor').replaceChildren();
-      setTimeout(renderPhotoPreview);
+      setTimeout(()=>{renderPhotoPreview();updatePropertyCodeHint();});
     });
     $('#cancel-property-edit').onclick=()=>{const form=$('#property-form');form.reset();setPropertyFormMode(false);renderPhotoPreview();};
     $('#preview-property').onclick=()=>{
