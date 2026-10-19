@@ -367,7 +367,8 @@
   }
   async function api(path, options={}) {
     const url = `${config.supabase.url.replace(/\/$/,'')}/rest/v1/${path}`;
-    const response = state.user ? await adminFetch(url,options) : await fetch(url,{...options,headers:{...authHeaders(),...(options.headers || {})}});
+    const jsonOptions = {...options,headers:{'Content-Type':'application/json',...(options.headers || {})}};
+    const response = state.user ? await adminFetch(url,jsonOptions) : await fetch(url,{...jsonOptions,headers:{...authHeaders(),...(jsonOptions.headers || {})}});
     const body = await response.text();
     if (!response.ok) throw new Error(`Supabase (${response.status}): ${(body || response.statusText).slice(0,350)}`);
     // PostgREST returns an empty body for Prefer: return=minimal (commonly HTTP 201 on insert).
