@@ -5,7 +5,7 @@
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
   const MAX_PROPERTY_PHOTO_SIZE = 20 * 1024 * 1024;
   const ALLOWED_PROPERTY_PHOTO_TYPES = new Set(['image/jpeg','image/png','image/webp','image/avif','image/heic','image/heif']);
-  const state = { properties: [], category: config.categories?.[0] || null, gallery: [], galleryIndex: 0, galleryTitle: '', galleryRequestId: 0, pendingPhotos: [], coverPhoto: null, cardSlideshowCleanups: [], user: null };
+  const state = { properties: [], category: config.categories?.[0] || null, gallery: [], galleryIndex: 0, galleryTitle: '', galleryRequestId: 0, pendingPhotos: [], uploadFiles: [], coverPhoto: null, cardSlideshowCleanups: [], user: null };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const hasSupabase = () => Boolean(config.supabase?.url && config.supabase?.anonKey);
   const wa = (message = 'Olá, Davi! Gostaria de conversar sobre imóveis em Cascavel.') => config.whatsapp ? `https://wa.me/${encodeURIComponent(config.whatsapp)}?text=${encodeURIComponent(message)}` : '#admin';
@@ -191,30 +191,53 @@
         const source = handle.closest(itemSelector);
         if (!source) return;
         const from = Number(source.dataset.photoSortItem);
-        let to = from;
-        const clear = () => {
+        const rect = source.getBoundingClientRect();
+        const placeholder = document.createElement('div');
+        placeholder.className = 'photo-sort-placeholder';
+        placeholder.style.width = `${rect.width}px`;
+        placeholder.style.height = `${rect.height}px`;
+        placeholder.setAttribute('aria-hidden', 'true');
+        source.before(placeholder);
+        source.classList.add('photo-dragging');
+        Object.assign(source.style, { position:'fixed', left:`${rect.left}px`, top:`${rect.top}px`, width:`${rect.width}px`, height:`${rect.height}px`, zIndex:'1000', pointerEvents:'none', margin:'0', transition:'none' });
+        container.classList.add('photo-sort-active');
+        const offsetX = event.clientX - rect.left;
+        const offsetY = event.clientY - rect.top;
+        const resetSource = () => {
+          source.classList.remove('photo-dragging');
+          ['position','left','top','width','height','zIndex','pointerEvents','margin','transition'].forEach(key => { source.style[key] = ''; });
           container.classList.remove('photo-sort-active');
-          container.querySelectorAll(`${itemSelector}.photo-drop-target, ${itemSelector}.photo-dragging`).forEach(item => item.classList.remove('photo-drop-target', 'photo-dragging'));
         };
         const finish = cancelled => {
           handle.removeEventListener('pointermove', track);
           handle.removeEventListener('pointerup', onPointerUp);
           handle.removeEventListener('pointercancel', onPointerCancel);
-          clear();
-          if (!cancelled && to !== from) onDrop(from, to);
+          if (cancelled) {
+            placeholder.replaceWith(source);
+            resetSource();
+            return;
+          }
+          placeholder.replaceWith(source);
+          resetSource();
+          container.querySelectorAll(`${itemSelector}.photo-drop-target`).forEach(item => item.classList.remove('photo-drop-target'));
+          container.querySelectorAll(itemSelector).forEach((item,index) => { item.dataset.photoSortItem = String(index); });
+          const to = [...container.querySelectorAll(itemSelector)].indexOf(source);
+          if (to !== from) onDrop(from, to);
         };
         const track = moveEvent => {
+          source.style.left = `${moveEvent.clientX - offsetX}px`;
+          source.style.top = `${moveEvent.clientY - offsetY}px`;
           const target = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY)?.closest(itemSelector);
-          if (!target || target.parentElement !== container) return;
-          const next = Number(target.dataset.photoSortItem);
-          if (!Number.isInteger(next)) return;
-          to = next;
-          container.querySelectorAll(itemSelector).forEach(item => item.classList.toggle('photo-drop-target', item === target && item !== source));
+          if (!target || target === source || target.parentElement !== container) return;
+          const targetRect = target.getBoundingClientRect();
+          const sameRow = Math.abs(moveEvent.clientY - (targetRect.top + targetRect.height / 2)) < targetRect.height * .42;
+          const after = sameRow ? moveEvent.clientX > targetRect.left + targetRect.width / 2 : moveEvent.clientY > targetRect.top + targetRect.height / 2;
+          container.insertBefore(placeholder, after ? target.nextSibling : target);
+          container.querySelectorAll(`${itemSelector}.photo-drop-target`).forEach(item => item.classList.remove('photo-drop-target'));
+          target.classList.add('photo-drop-target');
         };
         const onPointerUp = () => finish(false);
         const onPointerCancel = () => finish(true);
-        container.classList.add('photo-sort-active');
-        source.classList.add('photo-dragging');
         handle.addEventListener('pointermove', track);
         handle.addEventListener('pointerup', onPointerUp);
         handle.addEventListener('pointercancel', onPointerCancel);
@@ -343,18 +366,31 @@
     renderPhotoPreview();
   }
   function renderPhotoPreview() {
-    $('#photo-preview').innerHTML = `${state.pendingPhotos.length>1?'<p class="photo-order-hint">Arraste a alça ⠿ para reordenar. A primeira foto será a capa e aparecerá primeiro no site.</p>':''}${state.pendingPhotos.map((p,i) => `<div class="photo-preview-item" data-photo-sort-item="${i}"><button type="button" class="photo-drag-handle photo-preview-drag" data-photo-drag="${i}" aria-label="Arrastar foto ${i+1} para reordenar" title="Arraste para mudar a ordem"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg></button><img src="${esc(p.url)}" alt="Foto ${i+1}"><span class="photo-order-label">Foto ${i+1}${p.path===state.coverPhoto?' · Capa':''}</span><div class="photo-order-actions"><button type="button" data-preview-photo-move="${i}" data-move-to="${i-1}" ${i===0?'disabled':''} aria-label="Mover foto ${i+1} para antes">↑</button><button type="button" data-preview-photo-move="${i}" data-move-to="${i+1}" ${i===state.pendingPhotos.length-1?'disabled':''} aria-label="Mover foto ${i+1} para depois">↓</button><button type="button" data-remove-photo="${i}">Remover</button></div><button type="button" class="text-button" data-cover-photo="${i}">Usar como capa</button></div>`).join('')}`;
-    $$('[data-remove-photo]').forEach(button => button.onclick = () => { const [removed] = state.pendingPhotos.splice(Number(button.dataset.removePhoto),1); if (removed?.path === state.coverPhoto) state.coverPhoto = state.pendingPhotos[0]?.path || null; renderPhotoPreview(); });
+    const preview = $('#photo-preview');
+    $('#photo-upload-count').textContent = `${state.pendingPhotos.length} ${state.pendingPhotos.length === 1 ? 'foto adicionada' : 'fotos adicionadas'}`;
+    preview.innerHTML = `${state.pendingPhotos.length>1?'<p class="photo-order-hint">Arraste pela alça para reorganizar. A primeira foto é a capa; use as setas para ajustes precisos.</p>':''}${state.pendingPhotos.length ? state.pendingPhotos.map((p,i) => `<div class="photo-preview-item" data-photo-sort-item="${i}"><button type="button" class="photo-drag-handle photo-preview-drag" data-photo-drag="${i}" aria-label="Arrastar foto ${i+1} para reordenar" title="Segure e arraste para mudar a ordem"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg></button><img src="${esc(p.url)}" alt="Foto ${i+1}"><span class="photo-order-label">Foto ${i+1}${p.path===state.coverPhoto?' · Capa':''}</span><div class="photo-order-actions"><button type="button" data-preview-photo-move="${i}" data-move-to="${i-1}" ${i===0?'disabled':''} aria-label="Mover foto ${i+1} para antes">↑</button><button type="button" data-preview-photo-move="${i}" data-move-to="${i+1}" ${i===state.pendingPhotos.length-1?'disabled':''} aria-label="Mover foto ${i+1} para depois">↓</button><button type="button" data-remove-photo="${i}">Remover</button></div><button type="button" class="text-button" data-cover-photo="${i}">Usar como capa</button></div>`).join('') : '<p class="photo-preview-empty">Nenhuma foto adicionada ainda. Use “Adicionar fotos” para selecionar imagens.</p>'}`;
+    $$('[data-remove-photo]').forEach(button => button.onclick = () => { const [removed] = state.pendingPhotos.splice(Number(button.dataset.removePhoto),1); if (removed?.path === state.coverPhoto) state.coverPhoto = state.pendingPhotos[0]?.path || null; if (removed?.path?.startsWith('local-')) { URL.revokeObjectURL(removed.url); state.uploadFiles = state.uploadFiles.filter(item => item.localPath !== removed.path); } renderPhotoPreview(); });
     $$('[data-cover-photo]').forEach(button => button.onclick = () => movePendingPhoto(Number(button.dataset.coverPhoto),0));
     $$('[data-preview-photo-move]').forEach(button => button.onclick = () => movePendingPhoto(Number(button.dataset.previewPhotoMove),Number(button.dataset.moveTo)));
     enablePhotoDragging($('#photo-preview'), '.photo-preview-item', movePendingPhoto);
   }
   async function uploadPhotos(files, propertyId) {
-    for (const file of files) {
+    for (const {file} of files) {
       if (!ALLOWED_PROPERTY_PHOTO_TYPES.has(file.type)) throw Error(`Formato não permitido para “${file.name}”. Use JPEG, PNG, WebP, AVIF, HEIC ou HEIF.`);
       if (file.size > MAX_PROPERTY_PHOTO_SIZE) throw Error(`“${file.name}” excede o limite de 20 MB por foto.`);
     }
-    for(const file of files) { const path=`${propertyId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`; const r=await fetch(`${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/${config.supabase.bucket}/${path}`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`,'Content-Type':file.type,'x-upsert':'true'},body:file}); if(!r.ok)throw Error(`Falha ao enviar ${file.name}: ${await r.text()}`);state.pendingPhotos.push({path,url:mediaUrl(path)});if(!state.coverPhoto)state.coverPhoto=path; } state.pendingPhotos=state.pendingPhotos.filter(p=>!p.path.startsWith('local-')); }
+    for(const {file,localPath} of files) {
+      const localIndex = state.pendingPhotos.findIndex(photo => photo.path === localPath);
+      if (localIndex < 0) continue;
+      const localPhoto = state.pendingPhotos[localIndex];
+      const path=`${propertyId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+      const r=await fetch(`${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/${config.supabase.bucket}/${path}`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`,'Content-Type':file.type,'x-upsert':'true'},body:file});
+      if(!r.ok)throw Error(`Falha ao enviar ${file.name}: ${await r.text()}`);
+      state.pendingPhotos[localIndex] = {path,url:mediaUrl(path)};
+      if (state.coverPhoto === localPath || !state.coverPhoto) state.coverPhoto = path;
+      URL.revokeObjectURL(localPhoto.url);
+    }
+  }
   async function saveProperty(event) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -364,7 +400,7 @@
     submit.disabled = true;
     submit.textContent = 'Salvando…';
     try {
-      await uploadPhotos(formData.getAll('photos').filter(file => file.size), id);
+      await uploadPhotos([...state.uploadFiles], id);
       const payload = {
         title: formData.get('title'), description: formData.get('description'), category: formData.get('category'), region: formData.get('region'),
         price: Number(formData.get('price')) || null, area: Number(formData.get('area')) || null,
@@ -380,7 +416,7 @@
         await api(encodeURIComponent(config.supabase.table), { method:'POST', headers:{Prefer:'return=minimal'}, body:JSON.stringify({id,...payload}) });
       }
       setAdminStatus(`“${payload.title}” salvo como ${payload.status}.`);
-      form.reset(); state.pendingPhotos = []; state.coverPhoto = null; setPropertyFormMode(false); renderPhotoPreview();
+      form.reset(); clearPendingPhotos(); setPropertyFormMode(false); renderPhotoPreview();
       await loadCatalog();
     } catch (error) {
       setAdminStatus(`Não foi possível salvar o imóvel. ${error.message}`, true);
@@ -388,6 +424,12 @@
       submit.disabled = false;
       submit.textContent = form.elements.id.value ? 'Salvar alterações' : 'Salvar imóvel';
     }
+  }
+  function clearPendingPhotos() {
+    state.pendingPhotos.forEach(photo => { if (photo.path?.startsWith('local-')) URL.revokeObjectURL(photo.url); });
+    state.pendingPhotos = [];
+    state.uploadFiles = [];
+    state.coverPhoto = null;
   }
   function setupPasswordRecovery() {
     const params = new URLSearchParams([location.search.slice(1), location.hash.slice(1)].filter(Boolean).join('&'));
@@ -434,7 +476,41 @@
     });
     dialog.showModal();
   }
-  function setupAdmin() { $('#admin-login').onclick=login;$('#admin-login-form').addEventListener('submit',submitAdminLogin);$('#admin-login-cancel').onclick=()=>$('#admin-login-dialog').close();$('#admin-login-dialog').addEventListener('close',()=>{const form=$('#admin-login-form');if(!state.user)form.reset();});$('#admin-logout').onclick=async()=>{try{await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`}});}catch{}state.user=null;$('#property-form').reset();state.pendingPhotos=[];state.coverPhoto=null;setPropertyFormMode(false);$('#property-form').hidden=true;await loadCatalog();};$('#property-form').addEventListener('submit',saveProperty);$('#add-floor-plan').onclick=()=>addFloorPlanRow();$('#property-form').elements.photos.addEventListener('change',e=>{for(const f of e.target.files){const url=URL.createObjectURL(f);state.pendingPhotos.push({path:`local-${Date.now()}-${f.name}`,url});}renderPhotoPreview();});$('#property-form').addEventListener('reset',()=>{state.pendingPhotos=[];state.coverPhoto=null;$('#floor-plans-editor').replaceChildren();setTimeout(renderPhotoPreview);});$('#cancel-property-edit').onclick=()=>{const form=$('#property-form');form.reset();setPropertyFormMode(false);renderPhotoPreview();};$('#preview-property').onclick=()=>{const f=$('#property-form');const fd=new FormData(f);const temp={id:'preview',title:fd.get('title')||'Pré-visualização',description:fd.get('description'),category:fd.get('category'),region:fd.get('region'),price:fd.get('price'),status:'published',photos:state.pendingPhotos,featured:fd.get('featured')==='on',bedrooms:fd.get('bedrooms'),area:fd.get('area'),features:{items:String(fd.get('features')).split(',').map(value=>value.trim()).filter(Boolean),floor_plans:readFloorPlans()},payment:fd.get('payment')};state.properties.unshift(temp);openProperty('preview');state.properties.shift();}; }
+  function setupAdmin() {
+    $('#admin-login').onclick=login;
+    $('#admin-login-form').addEventListener('submit',submitAdminLogin);
+    $('#admin-login-cancel').onclick=()=>$('#admin-login-dialog').close();
+    $('#admin-login-dialog').addEventListener('close',()=>{const form=$('#admin-login-form');if(!state.user)form.reset();});
+    $('#admin-logout').onclick=async()=>{
+      try{await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`}});}catch{}
+      state.user=null;$('#property-form').reset();clearPendingPhotos();setPropertyFormMode(false);$('#property-form').hidden=true;await loadCatalog();
+    };
+    $('#property-form').addEventListener('submit',saveProperty);
+    $('#add-floor-plan').onclick=()=>addFloorPlanRow();
+    const photoInput=$('#property-form').elements.photos;
+    $('#add-property-photos').onclick=()=>photoInput.click();
+    photoInput.addEventListener('change',event=>{
+      for(const file of event.target.files){
+        const url=URL.createObjectURL(file);
+        const localPath=`local-${crypto.randomUUID()}`;
+        state.pendingPhotos.push({path:localPath,url});
+        state.uploadFiles.push({file,localPath});
+      }
+      event.target.value='';
+      renderPhotoPreview();
+    });
+    $('#property-form').addEventListener('reset',()=>{
+      clearPendingPhotos();
+      $('#floor-plans-editor').replaceChildren();
+      setTimeout(renderPhotoPreview);
+    });
+    $('#cancel-property-edit').onclick=()=>{const form=$('#property-form');form.reset();setPropertyFormMode(false);renderPhotoPreview();};
+    $('#preview-property').onclick=()=>{
+      const f=$('#property-form');const fd=new FormData(f);
+      const temp={id:'preview',title:fd.get('title')||'Pré-visualização',description:fd.get('description'),category:fd.get('category'),region:fd.get('region'),price:fd.get('price'),status:'published',photos:state.pendingPhotos,featured:fd.get('featured')==='on',bedrooms:fd.get('bedrooms'),area:fd.get('area'),features:{items:String(fd.get('features')).split(',').map(value=>value.trim()).filter(Boolean),floor_plans:readFloorPlans()},payment:fd.get('payment')};
+      state.properties.unshift(temp);openProperty('preview');state.properties.shift();
+    };
+  }
   function init() {
     initTheme();setupProfile();renderCategories();setupPasswordRecovery();
     $$('.modal-close').forEach(b=>b.onclick=()=>b.closest('dialog').close());[$('#property-modal'),$('#image-modal'),$('#about-modal')].forEach(d=>d.addEventListener('click',e=>{if(e.target===d)d.close();}));$('#avatar').addEventListener('click',()=>$('#about-modal').showModal());$('#property-modal').addEventListener('close',()=>{if(location.hash.startsWith('#imovel-'))history.replaceState(null,'',location.pathname+location.search);});
