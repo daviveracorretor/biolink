@@ -155,7 +155,7 @@
 /* Brief, elegant arrival and recurring gold sparkles for the personal mark. */
 .topbar .brand-logo{position:relative;animation:identity-arrive .75s cubic-bezier(.2,.75,.25,1) both}
 .profile h1{position:relative;width:max-content;max-width:100%;margin-inline:auto;animation:identity-arrive .75s .12s cubic-bezier(.2,.75,.25,1) both}
-.profile-wordmark{display:block;width:min(360px,84vw);height:auto;margin:0 auto}
+.profile-wordmark{display:block;width:min(270px,75vw);height:auto;margin:0 auto}
 @keyframes identity-arrive{from{opacity:0;transform:translateY(12px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(prefers-reduced-motion:reduce){.topbar .brand-logo,.profile h1{animation:none!important}}
 :root:not([data-theme="dark"]) .category-chip.active,:root:not([data-theme="dark"]) .category-chip.active:hover{background:var(--accent);border-color:var(--accent);color:#fff}
