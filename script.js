@@ -96,7 +96,7 @@
     const info = $('#category-info');
     if (info) {
       info.hidden = state.category !== 'Cohapar';
-      info.innerHTML = state.category === 'Cohapar' ? '<div><p class="eyebrow">ENTENDA O PROGRAMA</p><h3>Como funciona o Cohapar</h3><p>A inscrição é gratuita e feita online, com seus dados familiares e o município de interesse. Mantenha o cadastro atualizado: a seleção e os critérios dependem da modalidade e do empreendimento, e a inscrição não garante aprovação ou atendimento.</p><a href="https://www.sistemas.cohapar.pr.gov.br/pretendentesOnline/" target="_blank" rel="noopener noreferrer">Consultar ou atualizar cadastro oficial <span aria-hidden="true">↗</span></a></div>' : '';
+      info.innerHTML = state.category === 'Cohapar' ? '<button class="cohapar-info-trigger" type="button" aria-haspopup="dialog" aria-controls="cohapar-info-modal"><span class="cohapar-info-icon" aria-hidden="true">i</span><span><strong>Conheça o Cohapar</strong><small>Entenda como funciona e veja o que é necessário.</small></span><span class="cohapar-info-arrow" aria-hidden="true">↗</span></button>' : '';
     }
     const select = $('#property-form select[name="category"]'); if (select) select.innerHTML = (config.categories || []).map(c => `<option>${esc(c)}</option>`).join('');
   }
@@ -563,7 +563,7 @@
   }
   function init() {
     initTheme();setupProfile();renderCategories();setupPasswordRecovery();
-    $$('.modal-close').forEach(b=>b.onclick=()=>b.closest('dialog').close());[$('#property-modal'),$('#image-modal'),$('#about-modal')].forEach(d=>d.addEventListener('click',e=>{if(e.target===d)d.close();}));$('#avatar').addEventListener('click',()=>$('#about-modal').showModal());$('#property-modal').addEventListener('close',()=>{if(location.hash.startsWith('#imovel-'))history.replaceState(null,'',location.pathname+location.search);});
+    $$('.modal-close').forEach(b=>b.onclick=()=>b.closest('dialog').close());[$('#property-modal'),$('#image-modal'),$('#about-modal'),$('#cohapar-info-modal')].forEach(d=>d.addEventListener('click',e=>{if(e.target===d)d.close();}));$('#avatar').addEventListener('click',()=>$('#about-modal').showModal());$('#category-info').addEventListener('click',e=>{if(e.target.closest('.cohapar-info-trigger'))$('#cohapar-info-modal').showModal();});$('#property-modal').addEventListener('close',()=>{if(location.hash.startsWith('#imovel-'))history.replaceState(null,'',location.pathname+location.search);});
     $('.gallery-prev').onclick=()=>showLarge(state.galleryIndex-1);$('.gallery-next').onclick=()=>showLarge(state.galleryIndex+1);document.addEventListener('keydown',e=>{if(e.key==='Escape')return;if($('#image-modal').open&&e.key==='ArrowLeft')showLarge(state.galleryIndex-1);if($('#image-modal').open&&e.key==='ArrowRight')showLarge(state.galleryIndex+1);});
     setupAdmin();loadCatalog().then(()=>{if(location.hash.startsWith('#imovel-'))openProperty(decodeURIComponent(location.hash.slice(8)));});
   }
