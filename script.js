@@ -5,7 +5,7 @@
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
   const MAX_PROPERTY_PHOTO_SIZE = 20 * 1024 * 1024;
   const ALLOWED_PROPERTY_PHOTO_TYPES = new Set(['image/jpeg','image/png','image/webp','image/avif','image/heic','image/heif']);
-  const state = { properties: [], category: config.categories?.[0] || null, gallery: [], galleryIndex: 0, galleryTitle: '', galleryRequestId: 0, pendingPhotos: [], uploadFiles: [], coverPhoto: null, cardSlideshowCleanups: [], user: null };
+  const state = { properties: [], category: config.categories?.[0] || null, gallery: [], galleryIndex: 0, galleryTitle: '', galleryRequestId: 0, pendingPhotos: [], uploadFiles: [], coverPhoto: null, cardSlideshowCleanups: [], refreshPromise: null, user: null };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const hasSupabase = () => Boolean(config.supabase?.url && config.supabase?.anonKey);
   const wa = (message = 'Olá, Davi! Gostaria de conversar sobre imóveis em Cascavel.') => config.whatsapp ? `https://wa.me/${encodeURIComponent(config.whatsapp)}?text=${encodeURIComponent(message)}` : '#admin';
@@ -325,8 +325,49 @@
     if (preload.complete) requestAnimationFrame(commitImage);
   }
   function authHeaders() { return {'apikey':config.supabase.anonKey, 'Authorization':`Bearer ${state.user?.access_token || config.supabase.anonKey}`, 'Content-Type':'application/json'}; }
+  async function ensureFreshAdminSession(force = false) {
+    if (!state.user) throw new Error('Entre novamente na área de gerenciamento para continuar.');
+    const current = state.user;
+    const expiresAt = Number(current.expires_at) || Math.floor(Date.now()/1000) + Number(current.expires_in || 0);
+    if (!force && expiresAt - Math.floor(Date.now()/1000) > 90) return current;
+    if (state.refreshPromise) return state.refreshPromise;
+    if (!current.refresh_token) throw new Error('Sua sessão administrativa expirou. Entre novamente para continuar.');
+    state.refreshPromise = (async () => {
+      const response = await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/token?grant_type=refresh_token`, {
+        method:'POST',
+        headers:{apikey:config.supabase.anonKey,'Content-Type':'application/json'},
+        body:JSON.stringify({refresh_token:current.refresh_token})
+      });
+      if (!response.ok) {
+        state.user = null;
+        renderAdmin();
+        setAdminStatus('Sua sessão administrativa expirou. Entre novamente antes de salvar as alterações.',true);
+        throw new Error('Sua sessão administrativa expirou. Entre novamente para continuar.');
+      }
+      const refreshed = await response.json();
+      state.user = {...current,...refreshed,expires_at:refreshed.expires_at || Math.floor(Date.now()/1000) + Number(refreshed.expires_in || 3600)};
+      renderAdmin();
+      return state.user;
+    })();
+    try { return await state.refreshPromise; }
+    finally { state.refreshPromise = null; }
+  }
+  async function adminFetch(url, options = {}) {
+    await ensureFreshAdminSession();
+    const send = () => fetch(url,{...options,headers:{...(options.headers || {}),apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`}});
+    let response = await send();
+    if (response.status === 401 || response.status === 403) {
+      const errorBody = (await response.clone().text()).toLowerCase();
+      if (errorBody.includes('exp claim') || errorBody.includes('jwt expired') || errorBody.includes('token is expired')) {
+        await ensureFreshAdminSession(true);
+        response = await send();
+      }
+    }
+    return response;
+  }
   async function api(path, options={}) {
-    const response = await fetch(`${config.supabase.url.replace(/\/$/,'')}/rest/v1/${path}`, { ...options, headers: { ...authHeaders(), ...(options.headers || {}) } });
+    const url = `${config.supabase.url.replace(/\/$/,'')}/rest/v1/${path}`;
+    const response = state.user ? await adminFetch(url,options) : await fetch(url,{...options,headers:{...authHeaders(),...(options.headers || {})}});
     const body = await response.text();
     if (!response.ok) throw new Error(`Supabase (${response.status}): ${(body || response.statusText).slice(0,350)}`);
     // PostgREST returns an empty body for Prefer: return=minimal (commonly HTTP 201 on insert).
@@ -343,7 +384,7 @@
     renderCategories(); renderProperties(); renderAdmin();
   }
   function login() { const dialog=$('#admin-login-dialog'); $('#admin-login-error').textContent=''; dialog.showModal(); $('#admin-login-form').elements.email.focus(); }
-  async function submitAdminLogin(event) { event.preventDefault(); const form=event.currentTarget; const email=form.elements.email.value.trim(); const password=form.elements.password.value; const error=$('#admin-login-error'); const submit=form.querySelector('[type="submit"]'); error.textContent='Verificando acesso…'; submit.disabled=true; try { const r=await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:config.supabase.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email,password})}); if(!r.ok)throw Error('Credenciais inválidas ou serviço indisponível.'); const session=await r.json(); if(!config.supabase.adminUserId || session.user?.id?.toLowerCase()!==config.supabase.adminUserId.toLowerCase()){await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${session.access_token}`}}).catch(()=>{});throw Error('Esta conta não está autorizada a administrar o site.');} state.user=session; form.reset(); $('#admin-login-dialog').close(); $('#admin-login').hidden=true; $('#admin-logout').hidden=false; $('#property-form').hidden=false; await loadCatalog(); }catch(e){error.textContent=e.message;}finally{form.elements.password.value='';submit.disabled=false;} }
+  async function submitAdminLogin(event) { event.preventDefault(); const form=event.currentTarget; const email=form.elements.email.value.trim(); const password=form.elements.password.value; const error=$('#admin-login-error'); const submit=form.querySelector('[type="submit"]'); error.textContent='Verificando acesso…'; submit.disabled=true; try { const r=await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:config.supabase.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email,password})}); if(!r.ok)throw Error('Credenciais inválidas ou serviço indisponível.'); const session=await r.json(); if(!config.supabase.adminUserId || session.user?.id?.toLowerCase()!==config.supabase.adminUserId.toLowerCase()){await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${session.access_token}`}}).catch(()=>{});throw Error('Esta conta não está autorizada a administrar o site.');} session.expires_at=session.expires_at || Math.floor(Date.now()/1000)+Number(session.expires_in||3600); state.user=session; form.reset(); $('#admin-login-dialog').close(); $('#admin-login').hidden=true; $('#admin-logout').hidden=false; $('#property-form').hidden=false; await loadCatalog(); }catch(e){error.textContent=e.message;}finally{form.elements.password.value='';submit.disabled=false;} }
   function renderAdmin() {
     $('#admin-login').hidden=!hasSupabase()||!config.supabase.adminUserId||!!state.user; $('#admin-logout').hidden=!state.user; $('#property-form').hidden=!state.user;
     $('#admin-list').innerHTML=state.user?state.properties.map(p=>`<div class="admin-row"><span>${esc(p.title)} · ${esc(p.status)}</span><span><button class="text-button" data-edit="${esc(p.id)}">Editar</button><button class="text-button" data-delete="${esc(p.id)}">Excluir</button></span></div>`).join(''):'';
@@ -384,7 +425,7 @@
       if (localIndex < 0) continue;
       const localPhoto = state.pendingPhotos[localIndex];
       const path=`${propertyId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
-      const r=await fetch(`${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/${config.supabase.bucket}/${path}`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`,'Content-Type':file.type,'x-upsert':'true'},body:file});
+      const r=await adminFetch(`${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/${config.supabase.bucket}/${path}`,{method:'POST',headers:{'Content-Type':file.type,'x-upsert':'true'},body:file});
       if(!r.ok)throw Error(`Falha ao enviar ${file.name}: ${await r.text()}`);
       state.pendingPhotos[localIndex] = {path,url:mediaUrl(path)};
       if (state.coverPhoto === localPath || !state.coverPhoto) state.coverPhoto = path;
