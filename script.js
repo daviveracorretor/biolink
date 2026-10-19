@@ -5,7 +5,7 @@
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
   const MAX_PROPERTY_PHOTO_SIZE = 20 * 1024 * 1024;
   const ALLOWED_PROPERTY_PHOTO_TYPES = new Set(['image/jpeg','image/png','image/webp','image/avif','image/heic','image/heif']);
-  const state = { properties: [], category: config.categories?.[0] || null, gallery: [], galleryIndex: 0, galleryTitle: '', galleryRequestId: 0, pendingPhotos: [], coverPhoto: null, cardSlideshowTimers: [], user: null };
+  const state = { properties: [], category: config.categories?.[0] || null, gallery: [], galleryIndex: 0, galleryTitle: '', galleryRequestId: 0, pendingPhotos: [], coverPhoto: null, cardSlideshowCleanups: [], user: null };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const hasSupabase = () => Boolean(config.supabase?.url && config.supabase?.anonKey);
   const wa = (message = 'Olá, Davi! Gostaria de conversar sobre imóveis em Cascavel.') => config.whatsapp ? `https://wa.me/${encodeURIComponent(config.whatsapp)}?text=${encodeURIComponent(message)}` : '#admin';
@@ -95,8 +95,8 @@
     const select = $('#property-form select[name="category"]'); if (select) select.innerHTML = (config.categories || []).map(c => `<option>${esc(c)}</option>`).join('');
   }
   function renderProperties() {
-    state.cardSlideshowTimers.forEach(clearInterval);
-    state.cardSlideshowTimers = [];
+    state.cardSlideshowCleanups.forEach(cleanup => cleanup());
+    state.cardSlideshowCleanups = [];
     const list = filteredProperties(); const grid = $('#property-grid');
     $('#listing-count').textContent = `${list.length} ${list.length === 1 ? 'imóvel' : 'imóveis'}`;
     $('#empty-state').hidden = list.length > 0; grid.innerHTML = list.map(p => {
@@ -110,26 +110,70 @@
     }).join('');
     $$('.property-card', grid).forEach(card => { card.onclick = () => openProperty(card.dataset.id); card.onkeydown = e => { if (e.target.closest('.card-more-photos')) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProperty(card.dataset.id); } }; });
     $$('.card-more-photos', grid).forEach(button => button.onclick = event => { event.preventDefault(); event.stopPropagation(); openProperty(button.closest('.property-card').dataset.id); });
-    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) $$('.property-card', grid).forEach(card => {
+    $$('.property-card', grid).forEach(card => {
       const property = state.properties.find(item => String(item.id) === card.dataset.id);
       const photos = orderedPropertyPhotos(property).filter(photo => photo?.url).slice(0, 5);
       const image = $('.property-image img', card);
       if (!image || photos.length < 2) return;
-      let paused = false;
-      card.addEventListener('mouseenter', () => { paused = true; });
-      card.addEventListener('mouseleave', () => { paused = false; });
-      card.addEventListener('focusin', () => { paused = true; });
-      card.addEventListener('focusout', event => { if (!card.contains(event.relatedTarget)) paused = false; });
-      state.cardSlideshowTimers.push(setInterval(() => {
-        if (paused || document.hidden || $('#property-modal').open || $('#image-modal').open) return;
+      let inView = false;
+      let timer = null;
+      let loadingNext = false;
+      const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const schedule = (delay = 1600) => {
+        if (timer !== null || !inView || document.hidden) return;
+        timer = setTimeout(() => { timer = null; advance(); }, delay);
+      };
+      const advance = () => {
+        if (!inView || document.hidden) return;
+        if (loadingNext) return;
+        if ($('#property-modal').open || $('#image-modal').open) { schedule(900); return; }
         const index = (Number(image.dataset.photoIndex) + 1) % photos.length;
-        image.classList.remove('card-photo-enter');
-        void image.offsetWidth;
-        image.src = photos[index].url;
-        image.alt = `${property.title} — foto ${index + 1}`;
-        image.dataset.photoIndex = String(index);
-        image.classList.add('card-photo-enter');
-      }, 4000));
+        const nextImage = new Image();
+        loadingNext = true;
+        let shown = false;
+        const showNext = () => {
+          if (shown) return;
+          shown = true;
+          loadingNext = false;
+          if (!inView || !card.isConnected) { schedule(350); return; }
+          if (document.hidden || $('#property-modal').open || $('#image-modal').open) { schedule(900); return; }
+          image.classList.remove('card-photo-enter');
+          void image.offsetWidth;
+          image.src = photos[index].url;
+          image.alt = `${property.title} — foto ${index + 1}`;
+          image.dataset.photoIndex = String(index);
+          if (!reducedMotion) image.classList.add('card-photo-enter');
+          schedule(3400);
+        };
+        nextImage.onload = showNext;
+        nextImage.onerror = () => { loadingNext = false; schedule(5000); };
+        nextImage.src = photos[index].url;
+        if (nextImage.complete && nextImage.naturalWidth) requestAnimationFrame(showNext);
+      };
+      const onVisibilityChange = () => {
+        if (document.hidden && timer !== null) { clearTimeout(timer); timer = null; }
+        else schedule();
+      };
+      document.addEventListener('visibilitychange', onVisibilityChange);
+      let observer = null;
+      if ('IntersectionObserver' in window) {
+        observer = new IntersectionObserver(entries => {
+          const entry = entries.find(item => item.target === card);
+          if (!entry) return;
+          inView = entry.isIntersecting && entry.intersectionRatio >= 0.25;
+          if (inView) schedule();
+          else if (timer !== null) { clearTimeout(timer); timer = null; }
+        }, { threshold: [0, 0.25], rootMargin: '0px 0px -5% 0px' });
+        observer.observe(card);
+      } else {
+        inView = true;
+        schedule();
+      }
+      state.cardSlideshowCleanups.push(() => {
+        if (timer !== null) clearTimeout(timer);
+        observer?.disconnect();
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+      });
     });
   }
   async function track(id) { if (!config.analyticsEndpoint) return; try { await fetch(config.analyticsEndpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({event:'property_view', property_id:id, timestamp:new Date().toISOString()}) }); } catch {} }
