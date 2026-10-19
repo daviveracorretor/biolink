@@ -155,14 +155,12 @@
 /* Brief, elegant arrival and recurring gold sparkles for the personal mark. */
 .topbar .brand-logo{position:relative;animation:identity-arrive .75s cubic-bezier(.2,.75,.25,1) both}
 .profile h1{position:relative;width:max-content;max-width:100%;margin-inline:auto;animation:identity-arrive .75s .12s cubic-bezier(.2,.75,.25,1) both}
-.topbar .brand-logo::before,.topbar .brand-logo::after,.profile h1::before,.profile h1::after{position:absolute;z-index:2;color:#D6B66A;line-height:1;pointer-events:none;text-shadow:0 1px 8px #D6B66A80;animation:golden-sparkle 2.8s ease-in-out infinite}
-.topbar .brand-logo::before{content:"✦";top:-5px;right:-8px;font-size:10px;animation-delay:.25s}
-.topbar .brand-logo::after{content:"✧";bottom:1px;left:-8px;font-size:9px;animation-delay:1.35s}
+.profile h1::before,.profile h1::after{position:absolute;z-index:2;color:#D6B66A;line-height:1;pointer-events:none;text-shadow:0 1px 8px #D6B66A80;animation:golden-sparkle 2.8s ease-in-out infinite}
 .profile h1::before{content:"✧";top:-8px;left:-19px;font-size:11px;animation-delay:.65s}
 .profile h1::after{content:"✦";right:-20px;bottom:-4px;font-size:9px;animation-delay:1.8s}
 @keyframes identity-arrive{from{opacity:0;transform:translateY(12px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes golden-sparkle{0%,72%,100%{opacity:.18;transform:scale(.55) rotate(-18deg)}82%{opacity:1;transform:scale(1.15) rotate(12deg)}90%{opacity:.65;transform:scale(.86) rotate(-7deg)}}
-@media(prefers-reduced-motion:reduce){.topbar .brand-logo,.profile h1,.topbar .brand-logo::before,.topbar .brand-logo::after,.profile h1::before,.profile h1::after{animation:none!important}}
+@media(prefers-reduced-motion:reduce){.topbar .brand-logo,.profile h1,.profile h1::before,.profile h1::after{animation:none!important}}
 :root:not([data-theme="dark"]) .category-chip.active,:root:not([data-theme="dark"]) .category-chip.active:hover{background:var(--accent);border-color:var(--accent);color:#fff}
 :root:not([data-theme="dark"]) .contact-card-alt{background:var(--surface-2);border-color:var(--border)}
 :root:not([data-theme="dark"]) .badge{background:var(--surface);color:var(--ink)}
