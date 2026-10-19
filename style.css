@@ -113,6 +113,18 @@
 .category-chip.active,.category-chip.active:hover{box-shadow:0 5px 14px #117d7938}
 @media(max-width:620px){.floor-plan-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.floor-plan-row .remove-floor-plan{justify-self:start}}
 
+/* Warm espresso dark theme and soft ice light theme, with responsive logo contrast. */
+:root{color-scheme:light;--bg:#F0F3F2;--surface:#E9EFED;--surface-2:#DFE8E5;--ink:#172321;--muted:#687873;--border:#D3DEDA;--shadow:0 16px 50px #172a310c}
+[data-theme="dark"]{color-scheme:dark;--bg:#0F0B0A;--surface:#191311;--surface-2:#241B18;--ink:#F1EBE4;--muted:#B9AAA1;--border:#3A2D28;--shadow:0 16px 50px #0007}
+.brand-logo{background:var(--surface);box-shadow:0 2px 8px #14262d12}
+[data-theme="dark"] .brand-logo{background:transparent;box-shadow:none}
+.topbar .theme-toggle{background:var(--surface);color:var(--ink);border-color:var(--border)}
+.avatar{border-color:var(--surface);box-shadow:0 0 0 4px var(--bg)}
+.avatar:hover{box-shadow:0 0 0 5px var(--bg),0 8px 22px #14262d24}
+.social-icon,.category-chip{background:var(--surface);border-color:var(--border);color:var(--ink)}
+.category-chip.active,.category-chip.active:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+.spotlight .button-light{background:var(--surface);color:var(--ink)}
+
 /* Compact profile header with an interactive portrait and a short about dialog. */
 .profile{padding-top:18px}
 .avatar{display:grid;place-items:center;padding:0;cursor:pointer;transition:transform .2s,box-shadow .2s}

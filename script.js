@@ -43,6 +43,7 @@
     const button = $('#theme-toggle');
     const updateButton = () => {
       const dark = document.documentElement.dataset.theme === 'dark';
+      document.querySelector('meta[name="theme-color"]').content = dark ? '#0F0B0A' : '#F0F3F2';
       button.setAttribute('aria-label', dark ? 'Ativar tema claro' : 'Ativar tema escuro');
       button.title = dark ? 'Ativar tema claro' : 'Ativar tema escuro';
       button.querySelector('span').textContent = dark ? '☀' : '☾';
