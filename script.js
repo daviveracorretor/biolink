@@ -6,7 +6,8 @@
   const MAX_PROPERTY_PHOTO_SIZE = 20 * 1024 * 1024;
   const ALLOWED_PROPERTY_PHOTO_TYPES = new Set(['image/jpeg','image/png','image/webp','image/avif','image/heic','image/heif']);
   const ALL_CATEGORIES = '__all__';
-  const state = { properties: [], category: config.categories?.[0] || null, gallery: [], galleryIndex: 0, galleryTitle: '', galleryRequestId: 0, pendingPhotos: [], uploadFiles: [], coverPhoto: null, cardSlideshowCleanups: [], refreshPromise: null, user: null };
+  const CATEGORY_STORAGE_KEY = 'dv-property-category';
+  const state = { properties: [], category: ALL_CATEGORIES, gallery: [], galleryIndex: 0, galleryTitle: '', galleryRequestId: 0, pendingPhotos: [], uploadFiles: [], coverPhoto: null, cardSlideshowCleanups: [], refreshPromise: null, user: null };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const hasSupabase = () => Boolean(config.supabase?.url && config.supabase?.anonKey);
   const wa = (message = 'Olá, Davi! Gostaria de conversar sobre imóveis em Cascavel.') => config.whatsapp ? `https://wa.me/${encodeURIComponent(config.whatsapp)}?text=${encodeURIComponent(message)}` : '#admin';
@@ -91,10 +92,13 @@
     const host = $('#category-filters');
     const visibleStatuses = new Set(['published','reserved','sold']);
     const available = (config.categories || []).filter(category => state.properties.some(property => visibleStatuses.has(property.status) && canonicalCategory(property.category) === category));
-    if (state.category !== ALL_CATEGORIES && !available.includes(state.category)) state.category = available[0] || null;
+    if (state.category !== ALL_CATEGORIES && available.length && !available.includes(state.category)) {
+      state.category = ALL_CATEGORIES;
+      localStorage.setItem(CATEGORY_STORAGE_KEY, state.category);
+    }
     host.hidden = available.length === 0;
     host.innerHTML = available.length ? [`<button class="category-chip category-chip-all ${state.category === ALL_CATEGORIES ? 'active':''}" type="button" data-category="${ALL_CATEGORIES}" aria-pressed="${state.category === ALL_CATEGORIES}">${state.category === ALL_CATEGORIES ? '<span class="category-check" aria-hidden="true">✓</span>':''}Todos</button>`, ...available.map(c => `<button class="category-chip category-chip-${categoryKey(c).replace(/[^a-z0-9]+/g, '-')} ${state.category === c ? 'active':''}" type="button" data-category="${esc(c)}" aria-pressed="${state.category === c}">${state.category === c ? '<span class="category-check" aria-hidden="true">✓</span>':''}${esc(c)}</button>`)].join('') : '';
-    host.onclick = e => { const b = e.target.closest('[data-category]'); if (b) { state.category = b.dataset.category; renderCategories(); renderProperties(); } };
+    host.onclick = e => { const b = e.target.closest('[data-category]'); if (b) { state.category = b.dataset.category; localStorage.setItem(CATEGORY_STORAGE_KEY, state.category); renderCategories(); renderProperties(); } };
     const info = $('#category-info');
     if (info) {
       info.hidden = state.category !== 'Cohapar';
@@ -589,6 +593,9 @@
     };
   }
   function init() {
+    const savedCategory = localStorage.getItem(CATEGORY_STORAGE_KEY);
+    if (savedCategory === ALL_CATEGORIES) state.category = ALL_CATEGORIES;
+    else if (savedCategory && (config.categories || []).some(category => canonicalCategory(savedCategory) === category)) state.category = canonicalCategory(savedCategory);
     initTheme();setupProfile();renderCategories();setupPasswordRecovery();
     $$('.modal-close').forEach(b=>b.onclick=()=>b.closest('dialog').close());[$('#property-modal'),$('#image-modal'),$('#about-modal'),$('#cohapar-info-modal')].forEach(d=>d.addEventListener('click',e=>{if(e.target===d)d.close();}));$('#avatar').addEventListener('click',()=>$('#about-modal').showModal());$('#category-info').addEventListener('click',e=>{if(e.target.closest('.cohapar-info-trigger'))$('#cohapar-info-modal').showModal();});$('#property-modal').addEventListener('close',()=>{if(location.hash.startsWith('#imovel-'))history.replaceState(null,'',location.pathname+location.search);});
     $('.gallery-prev').onclick=()=>showLarge(state.galleryIndex-1);$('.gallery-next').onclick=()=>showLarge(state.galleryIndex+1);document.addEventListener('keydown',e=>{if(e.key==='Escape')return;if($('#image-modal').open&&e.key==='ArrowLeft')showLarge(state.galleryIndex-1);if($('#image-modal').open&&e.key==='ArrowRight')showLarge(state.galleryIndex+1);});
