@@ -240,3 +240,20 @@ button svg{display:block;flex:0 0 auto;width:1em;height:1em}
 .photo-preview-item>[data-cover-photo]{font-size:10px;padding:3px 7px}
 @media(max-width:620px){.modal-photo-item{flex-basis:84%}.card-more-photos{bottom:9px;min-height:32px}}
 @media(prefers-reduced-motion:reduce){.property-image>img.card-photo-enter{animation:none}}
+
+/* Fast touch-friendly drag ordering for the admin photo galleries. */
+.photo-preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:10px;align-items:stretch}
+.photo-preview-item{position:relative;min-width:0;padding:9px 8px 8px;transition:transform .16s,border-color .16s,box-shadow .16s,opacity .16s}
+.photo-preview-item img{width:100%;height:88px;border-radius:6px;object-fit:cover}
+.photo-drag-handle{display:inline-grid;place-items:center;width:30px;height:30px;padding:0;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);color:var(--muted);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.photo-drag-handle:active{cursor:grabbing}
+.photo-drag-handle svg{width:17px;height:17px;fill:currentColor}
+.photo-preview-drag{position:absolute;z-index:1;top:13px;left:12px;background:var(--surface);box-shadow:0 2px 8px #0002}
+.photo-preview-item.photo-dragging,.modal-photo-item.photo-dragging{opacity:.55;transform:scale(.97)}
+.photo-preview-item.photo-drop-target,.modal-photo-item.photo-drop-target{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 35%,transparent)}
+.photo-sort-active{user-select:none;-webkit-user-select:none}
+.modal-photo-order{align-items:center}
+.modal-photo-order .photo-drag-handle{border-color:#ffffff35;background:#ffffff12;color:#fff}
+.modal-photo-order .photo-drag-handle:hover{background:#ffffff2b}
+.photo-sort-active .photo-drag-handle{cursor:grabbing}
+@media(max-width:620px){.photo-preview{grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:7px}.photo-preview-item{padding:7px 6px}.photo-preview-item img{height:72px}.photo-preview-drag{top:10px;left:9px}}

@@ -136,7 +136,47 @@
   function modalPhotoMarkup(p) {
     const photos = orderedPropertyPhotos(p).filter(photo => photo?.url);
     if (!photos.length && p.cover_url) return `<div class="modal-photo-item"><img src="${esc(p.cover_url)}" alt="${esc(p.title)} — foto 1" data-photo-index="0" loading="lazy"></div>`;
-    return photos.map((photo,i) => `<div class="modal-photo-item"><img src="${esc(photo.url)}" alt="${esc(p.title)} — foto ${i+1}" data-photo-index="${i}" loading="lazy">${state.user && String(p.id) !== 'preview' && photos.length > 1 ? `<div class="modal-photo-order"><button type="button" data-modal-photo-move="${i}" data-move-to="${i-1}" ${i===0?'disabled':''} aria-label="Mover foto ${i+1} para antes">↑</button><button type="button" data-modal-photo-move="${i}" data-move-to="${i+1}" ${i===photos.length-1?'disabled':''} aria-label="Mover foto ${i+1} para depois">↓</button></div>`:''}</div>`).join('');
+    return photos.map((photo,i) => `<div class="modal-photo-item" data-photo-sort-item="${i}"><img src="${esc(photo.url)}" alt="${esc(p.title)} — foto ${i+1}" data-photo-index="${i}" loading="lazy">${state.user && String(p.id) !== 'preview' && photos.length > 1 ? `<div class="modal-photo-order"><button type="button" class="photo-drag-handle" data-photo-drag="${i}" aria-label="Arrastar foto ${i+1} para reordenar" title="Arraste para mudar a ordem"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg></button><button type="button" data-modal-photo-move="${i}" data-move-to="${i-1}" ${i===0?'disabled':''} aria-label="Mover foto ${i+1} para antes">↑</button><button type="button" data-modal-photo-move="${i}" data-move-to="${i+1}" ${i===photos.length-1?'disabled':''} aria-label="Mover foto ${i+1} para depois">↓</button></div>`:''}</div>`).join('');
+  }
+  function enablePhotoDragging(container, itemSelector, onDrop) {
+    if (!container) return;
+    container.querySelectorAll('[data-photo-drag]').forEach(handle => {
+      handle.addEventListener('pointerdown', event => {
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        event.preventDefault();
+        const source = handle.closest(itemSelector);
+        if (!source) return;
+        const from = Number(source.dataset.photoSortItem);
+        let to = from;
+        const clear = () => {
+          container.classList.remove('photo-sort-active');
+          container.querySelectorAll(`${itemSelector}.photo-drop-target, ${itemSelector}.photo-dragging`).forEach(item => item.classList.remove('photo-drop-target', 'photo-dragging'));
+        };
+        const finish = cancelled => {
+          handle.removeEventListener('pointermove', track);
+          handle.removeEventListener('pointerup', onPointerUp);
+          handle.removeEventListener('pointercancel', onPointerCancel);
+          clear();
+          if (!cancelled && to !== from) onDrop(from, to);
+        };
+        const track = moveEvent => {
+          const target = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY)?.closest(itemSelector);
+          if (!target || target.parentElement !== container) return;
+          const next = Number(target.dataset.photoSortItem);
+          if (!Number.isInteger(next)) return;
+          to = next;
+          container.querySelectorAll(itemSelector).forEach(item => item.classList.toggle('photo-drop-target', item === target && item !== source));
+        };
+        const onPointerUp = () => finish(false);
+        const onPointerCancel = () => finish(true);
+        container.classList.add('photo-sort-active');
+        source.classList.add('photo-dragging');
+        handle.addEventListener('pointermove', track);
+        handle.addEventListener('pointerup', onPointerUp);
+        handle.addEventListener('pointercancel', onPointerCancel);
+        try { handle.setPointerCapture(event.pointerId); } catch {}
+      });
+    });
   }
   async function movePropertyPhoto(p, from, to) {
     const current = orderedPropertyPhotos(p);
@@ -176,9 +216,10 @@
     const features = propertyFeatures(p); const floorPlans = propertyFloorPlans(p);
     const url = new URL(location.href); url.hash = `imovel-${encodeURIComponent(p.id)}`;
     const contact = wa(`Olá, Davi! Tenho interesse no imóvel ${p.title}${p.code ? ` (código ${p.code})`:''}.`);
-    $('#modal-content').innerHTML = `<div class="modal-gallery">${modalPhotoMarkup(p)}</div>${state.user && String(p.id) !== 'preview' && p.photos?.length > 1 ? '<p class="photo-order-hint">Administrador: use ↑ e ↓ nas fotos para reorganizar. A ordem é salva automaticamente.</p>':''}<div class="modal-copy"><p class="eyebrow">${esc(canonicalCategory(p.category))} · ${esc(p.region || 'Cascavel, PR')}</p><h2>${esc(p.title)}</h2><p class="modal-price">${money(p.price)}</p>${p.code ? `<p>Código do anúncio: ${esc(p.code)}</p>`:''}<div class="modal-facts">${facts.map(x=>`<span>${esc(x[0])}: ${esc(x[1])}</span>`).join('')}</div><p>${esc(p.description || '')}</p>${features.length ? `<h3>Diferenciais</h3><p>${esc(features.join(' · '))}</p>`:''}${floorPlans.length ? `<h3>Plantas disponíveis</h3><ul class="modal-floor-plans">${floorPlans.map(floorPlanLabel).filter(Boolean).map(plan=>`<li>${esc(plan)}</li>`).join('')}</ul>`:''}${p.payment ? `<h3>Condições de pagamento</h3><p>${esc(p.payment)}</p>`:''}<div class="share-actions"><a class="button button-primary" href="${esc(contact)}" ${config.whatsapp?'target="_blank" rel="noopener"':''}>Falar sobre este imóvel ↗</a><button class="button button-secondary" id="copy-property-link">Copiar link</button><button class="button button-secondary" id="share-property">Compartilhar</button></div></div>`;
+    $('#modal-content').innerHTML = `<div class="modal-gallery">${modalPhotoMarkup(p)}</div>${state.user && String(p.id) !== 'preview' && p.photos?.length > 1 ? '<p class="photo-order-hint">Administrador: arraste a alça ⠿ para reordenar. A primeira foto será a capa; a ordem é salva automaticamente.</p>':''}<div class="modal-copy"><p class="eyebrow">${esc(canonicalCategory(p.category))} · ${esc(p.region || 'Cascavel, PR')}</p><h2>${esc(p.title)}</h2><p class="modal-price">${money(p.price)}</p>${p.code ? `<p>Código do anúncio: ${esc(p.code)}</p>`:''}<div class="modal-facts">${facts.map(x=>`<span>${esc(x[0])}: ${esc(x[1])}</span>`).join('')}</div><p>${esc(p.description || '')}</p>${features.length ? `<h3>Diferenciais</h3><p>${esc(features.join(' · '))}</p>`:''}${floorPlans.length ? `<h3>Plantas disponíveis</h3><ul class="modal-floor-plans">${floorPlans.map(floorPlanLabel).filter(Boolean).map(plan=>`<li>${esc(plan)}</li>`).join('')}</ul>`:''}${p.payment ? `<h3>Condições de pagamento</h3><p>${esc(p.payment)}</p>`:''}<div class="share-actions"><a class="button button-primary" href="${esc(contact)}" ${config.whatsapp?'target="_blank" rel="noopener"':''}>Falar sobre este imóvel ↗</a><button class="button button-secondary" id="copy-property-link">Copiar link</button><button class="button button-secondary" id="share-property">Compartilhar</button></div></div>`;
     $$('.modal-gallery img').forEach(img => img.onclick = () => showLarge(Number(img.dataset.photoIndex)));
     $$('[data-modal-photo-move]').forEach(button => button.onclick = () => movePropertyPhoto(p, Number(button.dataset.modalPhotoMove), Number(button.dataset.moveTo)));
+    if (state.user && String(p.id) !== 'preview') enablePhotoDragging($('.modal-gallery'), '.modal-photo-item', (from,to) => movePropertyPhoto(p,from,to));
     $('#copy-property-link').onclick = async () => { await navigator.clipboard.writeText(url.href); $('#copy-property-link').textContent = 'Link copiado'; };
     $('#share-property').onclick = async () => { if (navigator.share) await navigator.share({title:p.title,url:url.href}); else { await navigator.clipboard.writeText(url.href); $('#share-property').textContent = 'Link copiado'; } };
     if (!$('#property-modal').open) $('#property-modal').showModal(); history.replaceState(null,'',url); track(p.id);
@@ -258,10 +299,11 @@
     renderPhotoPreview();
   }
   function renderPhotoPreview() {
-    $('#photo-preview').innerHTML = `${state.pendingPhotos.length>1?'<p class="photo-order-hint">Use as setas para mudar a ordem das fotos. A primeira será a capa e aparecerá primeiro no site.</p>':''}${state.pendingPhotos.map((p,i) => `<div class="photo-preview-item"><img src="${esc(p.url)}" alt="Foto ${i+1}"><span class="photo-order-label">Foto ${i+1}${p.path===state.coverPhoto?' · Capa':''}</span><div class="photo-order-actions"><button type="button" data-preview-photo-move="${i}" data-move-to="${i-1}" ${i===0?'disabled':''} aria-label="Mover foto ${i+1} para antes">↑</button><button type="button" data-preview-photo-move="${i}" data-move-to="${i+1}" ${i===state.pendingPhotos.length-1?'disabled':''} aria-label="Mover foto ${i+1} para depois">↓</button><button type="button" data-remove-photo="${i}">Remover</button></div><button type="button" class="text-button" data-cover-photo="${i}">Usar como capa</button></div>`).join('')}`;
+    $('#photo-preview').innerHTML = `${state.pendingPhotos.length>1?'<p class="photo-order-hint">Arraste a alça ⠿ para reordenar. A primeira foto será a capa e aparecerá primeiro no site.</p>':''}${state.pendingPhotos.map((p,i) => `<div class="photo-preview-item" data-photo-sort-item="${i}"><button type="button" class="photo-drag-handle photo-preview-drag" data-photo-drag="${i}" aria-label="Arrastar foto ${i+1} para reordenar" title="Arraste para mudar a ordem"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg></button><img src="${esc(p.url)}" alt="Foto ${i+1}"><span class="photo-order-label">Foto ${i+1}${p.path===state.coverPhoto?' · Capa':''}</span><div class="photo-order-actions"><button type="button" data-preview-photo-move="${i}" data-move-to="${i-1}" ${i===0?'disabled':''} aria-label="Mover foto ${i+1} para antes">↑</button><button type="button" data-preview-photo-move="${i}" data-move-to="${i+1}" ${i===state.pendingPhotos.length-1?'disabled':''} aria-label="Mover foto ${i+1} para depois">↓</button><button type="button" data-remove-photo="${i}">Remover</button></div><button type="button" class="text-button" data-cover-photo="${i}">Usar como capa</button></div>`).join('')}`;
     $$('[data-remove-photo]').forEach(button => button.onclick = () => { const [removed] = state.pendingPhotos.splice(Number(button.dataset.removePhoto),1); if (removed?.path === state.coverPhoto) state.coverPhoto = state.pendingPhotos[0]?.path || null; renderPhotoPreview(); });
     $$('[data-cover-photo]').forEach(button => button.onclick = () => movePendingPhoto(Number(button.dataset.coverPhoto),0));
     $$('[data-preview-photo-move]').forEach(button => button.onclick = () => movePendingPhoto(Number(button.dataset.previewPhotoMove),Number(button.dataset.moveTo)));
+    enablePhotoDragging($('#photo-preview'), '.photo-preview-item', movePendingPhoto);
   }
   async function uploadPhotos(files, propertyId) {
     for (const file of files) {
