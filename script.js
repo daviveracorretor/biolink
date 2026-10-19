@@ -119,14 +119,14 @@
       let timer = null;
       let loadingNext = false;
       const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const schedule = (delay = 1600) => {
+      const schedule = (delay = 3000) => {
         if (timer !== null || !inView || document.hidden) return;
         timer = setTimeout(() => { timer = null; advance(); }, delay);
       };
       const advance = () => {
         if (!inView || document.hidden) return;
         if (loadingNext) return;
-        if ($('#property-modal').open || $('#image-modal').open) { schedule(900); return; }
+        if ($('#property-modal').open || $('#image-modal').open) { schedule(3000); return; }
         const index = (Number(image.dataset.photoIndex) + 1) % photos.length;
         const nextImage = new Image();
         loadingNext = true;
@@ -136,14 +136,14 @@
           shown = true;
           loadingNext = false;
           if (!inView || !card.isConnected) { schedule(350); return; }
-          if (document.hidden || $('#property-modal').open || $('#image-modal').open) { schedule(900); return; }
+          if (document.hidden || $('#property-modal').open || $('#image-modal').open) { schedule(3000); return; }
           image.classList.remove('card-photo-enter');
           void image.offsetWidth;
           image.src = photos[index].url;
           image.alt = `${property.title} — foto ${index + 1}`;
           image.dataset.photoIndex = String(index);
           if (!reducedMotion) image.classList.add('card-photo-enter');
-          schedule(3400);
+          schedule(3000);
         };
         nextImage.onload = showNext;
         nextImage.onerror = () => { loadingNext = false; schedule(5000); };
