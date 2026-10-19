@@ -125,6 +125,25 @@
 .category-chip.active,.category-chip.active:hover{background:var(--accent);border-color:var(--accent);color:#fff}
 .spotlight .button-light{background:var(--surface);color:var(--ink)}
 
+/* Unified cool-neutral and champagne palette for the refreshed themes. */
+:root{color-scheme:light;--bg:#F8F9FA;--surface:#FCFDFE;--surface-2:#EEF1F5;--ink:#24283A;--muted:#697084;--border:#E0E4EA;--accent:#80652F;--accent-dark:#685228;--accent-foreground:#fff;--shadow:0 16px 50px #191c2710;--spotlight-bg:#2A3043;--spotlight-bg-end:#383E53;--spotlight-ink:#F6F7FA;--spotlight-muted:#D4D7E0;--spotlight-highlight:#E4CB83}
+[data-theme="dark"]{color-scheme:dark;--bg:#191C27;--surface:#222633;--surface-2:#2D3241;--ink:#F1F2F6;--muted:#B1B6C5;--border:#3A4050;--accent:#D6B66A;--accent-dark:#E7CC8A;--accent-foreground:#191C27;--shadow:0 16px 50px #080a12a6;--spotlight-bg:#252A3B;--spotlight-bg-end:#30364A;--spotlight-ink:#F1F2F6;--spotlight-muted:#C2C6D2;--spotlight-highlight:#E5C979}
+.button-primary{color:var(--accent-foreground)}
+.category-chip.active,.category-chip.active:hover{color:var(--accent-foreground);box-shadow:0 5px 14px color-mix(in srgb,var(--accent) 28%,transparent)}
+.spotlight{background:linear-gradient(135deg,var(--spotlight-bg),var(--spotlight-bg-end));color:var(--spotlight-ink)}
+.spotlight .eyebrow{color:var(--spotlight-highlight)}
+.spotlight h2{color:var(--spotlight-ink)}
+.spotlight p.spotlight-description,.spotlight p.spotlight-promise{color:var(--spotlight-muted)!important}
+.spotlight-badge{border-color:color-mix(in srgb,var(--spotlight-highlight) 38%,transparent);background:color-mix(in srgb,var(--spotlight-highlight) 12%,transparent);color:var(--spotlight-ink)}
+.spotlight-promise span{background:var(--spotlight-highlight);box-shadow:0 0 0 3px color-mix(in srgb,var(--spotlight-highlight) 20%,transparent)}
+.badge{background:var(--surface-2);color:var(--ink)}
+.badge.status{background:var(--accent);color:var(--accent-foreground)}
+.gallery-arrow:focus-visible,.image-modal .modal-close:focus-visible{outline-color:var(--accent)}
+.avatar:hover{box-shadow:0 0 0 5px var(--bg),0 8px 22px #14262d24}
+.image-modal,#gallery-count,.gallery-controls #gallery-count,.card-gallery-controls{background-color:#191c27}
+.card-gallery-controls{background:#191c27d9}
+.property-card:hover .card-gallery-controls,.card-gallery-controls:focus-within{background:#191c27ed}
+
 /* Compact profile header with an interactive portrait and a short about dialog. */
 .profile{padding-top:18px}
 .avatar{display:grid;place-items:center;padding:0;cursor:pointer;transition:transform .2s,box-shadow .2s}
