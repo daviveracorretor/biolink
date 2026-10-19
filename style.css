@@ -149,6 +149,7 @@
 :root:not([data-theme="dark"]) .avatar:hover{box-shadow:0 0 0 5px var(--bg),0 8px 22px #263d371c}
 :root:not([data-theme="dark"]) .social-icon{background:var(--surface);border-color:var(--border);color:var(--ink)}
 :root:not([data-theme="dark"]) .topbar .theme-toggle{background:var(--surface);color:var(--ink);border-color:var(--border)}
+:root:not([data-theme="dark"]) .brand-logo{background:transparent;box-shadow:none}
 :root:not([data-theme="dark"]) .category-chip{background:var(--surface);border-color:var(--border);color:var(--ink)}
 :root:not([data-theme="dark"]) .category-chip.active,:root:not([data-theme="dark"]) .category-chip.active:hover{background:var(--accent);border-color:var(--accent);color:#fff}
 :root:not([data-theme="dark"]) .contact-card-alt{background:var(--surface-2);border-color:var(--border)}
