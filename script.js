@@ -5,6 +5,7 @@
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
   const MAX_PROPERTY_PHOTO_SIZE = 20 * 1024 * 1024;
   const ALLOWED_PROPERTY_PHOTO_TYPES = new Set(['image/jpeg','image/png','image/webp','image/avif','image/heic','image/heif']);
+  const ALL_CATEGORIES = '__all__';
   const state = { properties: [], category: config.categories?.[0] || null, gallery: [], galleryIndex: 0, galleryTitle: '', galleryRequestId: 0, pendingPhotos: [], uploadFiles: [], coverPhoto: null, cardSlideshowCleanups: [], refreshPromise: null, user: null };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const hasSupabase = () => Boolean(config.supabase?.url && config.supabase?.anonKey);
@@ -82,16 +83,21 @@
   }
   function filteredProperties() {
     return state.properties.filter(p => p.status === 'published' || ['reserved','sold'].includes(p.status))
-      .filter(p => !state.category || canonicalCategory(p.category) === state.category);
+      .filter(p => !state.category || state.category === ALL_CATEGORIES || canonicalCategory(p.category) === state.category);
   }
   function renderCategories() {
     const host = $('#category-filters');
     const visibleStatuses = new Set(['published','reserved','sold']);
     const available = (config.categories || []).filter(category => state.properties.some(property => visibleStatuses.has(property.status) && canonicalCategory(property.category) === category));
-    if (!available.includes(state.category)) state.category = available[0] || null;
+    if (state.category !== ALL_CATEGORIES && !available.includes(state.category)) state.category = available[0] || null;
     host.hidden = available.length === 0;
-    host.innerHTML = available.map(c => `<button class="category-chip ${state.category === c ? 'active':''}" type="button" data-category="${esc(c)}" aria-pressed="${state.category === c}">${state.category === c ? '<span class="category-check" aria-hidden="true">✓</span>':''}${esc(c)}</button>`).join('');
+    host.innerHTML = available.length ? [`<button class="category-chip ${state.category === ALL_CATEGORIES ? 'active':''}" type="button" data-category="${ALL_CATEGORIES}" aria-pressed="${state.category === ALL_CATEGORIES}">${state.category === ALL_CATEGORIES ? '<span class="category-check" aria-hidden="true">✓</span>':''}Todos</button>`, ...available.map(c => `<button class="category-chip ${state.category === c ? 'active':''}" type="button" data-category="${esc(c)}" aria-pressed="${state.category === c}">${state.category === c ? '<span class="category-check" aria-hidden="true">✓</span>':''}${esc(c)}</button>`)].join('') : '';
     host.onclick = e => { const b = e.target.closest('[data-category]'); if (b) { state.category = b.dataset.category; renderCategories(); renderProperties(); } };
+    const info = $('#category-info');
+    if (info) {
+      info.hidden = state.category !== 'Cohapar';
+      info.innerHTML = state.category === 'Cohapar' ? '<div><p class="eyebrow">ENTENDA O PROGRAMA</p><h3>Como funciona o Cohapar</h3><p>A inscrição é gratuita e feita online, com seus dados familiares e o município de interesse. Mantenha o cadastro atualizado: a seleção e os critérios dependem da modalidade e do empreendimento, e a inscrição não garante aprovação ou atendimento.</p><a href="https://www.sistemas.cohapar.pr.gov.br/pretendentesOnline/" target="_blank" rel="noopener noreferrer">Consultar ou atualizar cadastro oficial <span aria-hidden="true">↗</span></a></div>' : '';
+    }
     const select = $('#property-form select[name="category"]'); if (select) select.innerHTML = (config.categories || []).map(c => `<option>${esc(c)}</option>`).join('');
   }
   function renderProperties() {
@@ -104,9 +110,11 @@
       const initialIndex = 0;
       const cover = photos[0]?.url || p.cover_url || '';
       const tags = [p.featured ? '<span class="badge">DESTAQUE</span>':'', p.status === 'reserved' ? '<span class="badge status">RESERVADO</span>':'', p.status === 'sold' ? '<span class="badge status">VENDIDO</span>':''].join('');
+      const category = canonicalCategory(p.category) || 'Imóvel';
+      const categoryClass = `category-${categoryKey(category).replace(/[^a-z0-9]+/g, '-')}`;
       const facts = [p.bedrooms ? `${esc(p.bedrooms)} quartos`:'', p.area ? `${decimal(p.area)} m²`:'', p.parking ? `${esc(p.parking)} vagas`:'' ].filter(Boolean).join(' · ');
       const morePhotos = photos.length > 1 ? `<button type="button" class="card-more-photos" aria-label="Ver todas as ${photos.length} fotos de ${esc(p.title)}">Ver mais fotos <span aria-hidden="true">↗</span></button>` : '';
-      return `<article class="property-card" tabindex="0" role="button" data-id="${esc(p.id)}"><div class="property-image">${cover ? `<img src="${esc(cover)}" alt="${esc(p.title)}" data-photo-index="${initialIndex}" loading="lazy">`:''}<div class="property-badges">${tags}</div>${morePhotos}</div><div class="property-copy"><p class="eyebrow">${esc(canonicalCategory(p.category) || 'IMÓVEL')}</p><h3>${esc(p.title)}</h3><p class="property-region">${esc(p.region || 'Cascavel, PR')}</p><p class="property-price">${money(p.price)}</p>${facts ? `<p class="property-meta">${facts}</p>`:''}</div></article>`;
+      return `<article class="property-card" tabindex="0" role="button" data-id="${esc(p.id)}"><div class="property-image">${cover ? `<img src="${esc(cover)}" alt="${esc(p.title)}" data-photo-index="${initialIndex}" loading="lazy">`:''}<div class="property-badges">${tags}</div><span class="property-category-badge ${categoryClass}">${esc(category)}</span>${morePhotos}</div><div class="property-copy"><h3>${esc(p.title)}</h3><p class="property-region">${esc(p.region || 'Cascavel, PR')}</p><p class="property-price">${money(p.price)}</p>${facts ? `<p class="property-meta">${facts}</p>`:''}</div></article>`;
     }).join('');
     $$('.property-card', grid).forEach(card => { card.onclick = () => openProperty(card.dataset.id); card.onkeydown = e => { if (e.target.closest('.card-more-photos')) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProperty(card.dataset.id); } }; });
     $$('.card-more-photos', grid).forEach(button => button.onclick = event => { event.preventDefault(); event.stopPropagation(); openProperty(button.closest('.property-card').dataset.id); });

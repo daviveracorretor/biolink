@@ -252,6 +252,22 @@ button svg{display:block;flex:0 0 auto;width:1em;height:1em}
 @media(max-width:620px){.modal-photo-item{flex-basis:84%}.card-more-photos{bottom:9px;min-height:32px}}
 @media(prefers-reduced-motion:reduce){.property-image>img.card-photo-enter{animation:none}}
 
+/* Category labels and contextual information for the selected Cohapar category. */
+.property-category-badge{position:absolute;z-index:2;top:12px;right:12px;display:inline-flex;align-items:center;min-height:27px;padding:0 11px;border:1px solid color-mix(in srgb,var(--badge-ink) 20%,transparent);border-radius:999px;background:color-mix(in srgb,var(--badge-bg) 88%,transparent);color:var(--badge-ink);font:700 10px/1 var(--sans);letter-spacing:.045em;box-shadow:0 5px 18px #10182020;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.category-novos{--badge-bg:#e6edf6;--badge-ink:#29486a}
+.category-cohapar{--badge-bg:#f2e9d1;--badge-ink:#72591e}
+.category-lotes{--badge-bg:#e0eee5;--badge-ink:#315b43}
+.category-prontos{--badge-bg:#dcecef;--badge-ink:#285765}
+.category-info{display:flex;margin:18px 0 4px;padding:20px 22px;border:1px solid var(--border);border-radius:12px;background:linear-gradient(130deg,var(--surface-2),var(--surface));box-shadow:0 10px 30px #1018200b}
+.category-info[hidden]{display:none}
+.category-info>div{max-width:760px}
+.category-info .eyebrow{margin:0 0 6px;color:var(--accent);font:700 10px/1.4 var(--sans);letter-spacing:.14em}
+.category-info h3{margin:0 0 7px;font:600 19px/1.25 var(--sans);color:var(--ink)}
+.category-info p:not(.eyebrow){margin:0;color:var(--muted);font:400 13px/1.65 var(--sans)}
+.category-info a{display:inline-flex;gap:6px;margin-top:11px;color:var(--accent);font:600 12px/1.4 var(--sans);text-decoration:none}
+.category-info a:hover{text-decoration:underline;text-underline-offset:3px}
+@media(max-width:620px){.property-category-badge{top:10px;right:10px;min-height:25px;padding:0 9px;font-size:9px}.category-info{margin-top:14px;padding:17px;border-radius:10px}.category-info h3{font-size:17px}}
+
 /* Fast touch-friendly drag ordering for the admin photo galleries. */
 .photo-preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:10px;align-items:stretch}
 .photo-preview-item{position:relative;min-width:0;padding:9px 8px 8px;transition:transform .16s,border-color .16s,box-shadow .16s,opacity .16s}
