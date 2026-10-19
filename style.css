@@ -154,8 +154,8 @@
 
 /* Brief, elegant arrival and recurring gold sparkles for the personal mark. */
 .topbar .brand-logo{position:relative;animation:identity-arrive .75s cubic-bezier(.2,.75,.25,1) both}
-.profile h1{position:relative;width:max-content;max-width:100%;margin-inline:auto;animation:identity-arrive .75s .12s cubic-bezier(.2,.75,.25,1) both}
-.profile-wordmark{display:block;width:min(270px,75vw);height:auto;margin:0 auto}
+.profile h1{position:relative;display:block;width:100%;max-width:100%;margin:13px auto 0;text-align:center;line-height:0;animation:identity-arrive .75s .12s cubic-bezier(.2,.75,.25,1) both}
+.profile-wordmark{display:block;width:min(140px,36vw);height:auto;margin:0 auto}
 @keyframes identity-arrive{from{opacity:0;transform:translateY(12px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(prefers-reduced-motion:reduce){.topbar .brand-logo,.profile h1{animation:none!important}}
 :root:not([data-theme="dark"]) .category-chip.active,:root:not([data-theme="dark"]) .category-chip.active:hover{background:var(--accent);border-color:var(--accent);color:#fff}
@@ -169,7 +169,7 @@
 .avatar{display:grid;place-items:center;padding:0;cursor:pointer;transition:transform .2s,box-shadow .2s}
 .avatar:hover{transform:translateY(-2px);box-shadow:0 0 0 5px var(--bg),0 8px 22px #263d371c}
 .avatar:focus-visible{outline:3px solid var(--accent);outline-offset:5px}
-.profile h1{font-family:'Google Sans Flex','Satoshi',sans-serif;font-size:clamp(23px,6vw,27px);font-weight:300;line-height:1.15;letter-spacing:.08em;text-transform:uppercase;margin:13px 0 0}
+.profile h1{font-family:'Google Sans Flex','Satoshi',sans-serif;font-size:clamp(23px,6vw,27px);font-weight:300;line-height:0;letter-spacing:.08em;text-transform:uppercase;margin:13px auto 0}
 .social-actions{margin-top:13px}
 .about-modal{position:relative;max-width:min(420px,calc(100vw - 28px));padding:34px 28px 28px;text-align:center;overflow:visible}
 .about-modal .modal-close{position:absolute;top:12px;right:12px;margin:0;float:none}
