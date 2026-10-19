@@ -136,6 +136,9 @@
 .spotlight p.spotlight-description,.spotlight p.spotlight-promise{color:var(--spotlight-muted)!important}
 .spotlight-badge{border-color:color-mix(in srgb,var(--spotlight-highlight) 38%,transparent);background:color-mix(in srgb,var(--spotlight-highlight) 12%,transparent);color:var(--spotlight-ink)}
 .spotlight-promise span{background:var(--spotlight-highlight);box-shadow:0 0 0 3px color-mix(in srgb,var(--spotlight-highlight) 20%,transparent)}
+.spotlight-promise span{animation:promise-dot-glow 2.4s ease-in-out infinite}
+@keyframes promise-dot-glow{0%,100%{transform:scale(.96);box-shadow:0 0 0 3px color-mix(in srgb,var(--spotlight-highlight) 20%,transparent),0 0 4px color-mix(in srgb,var(--spotlight-highlight) 22%,transparent)}50%{transform:scale(1.08);box-shadow:0 0 0 5px color-mix(in srgb,var(--spotlight-highlight) 17%,transparent),0 0 12px 3px color-mix(in srgb,var(--spotlight-highlight) 42%,transparent)}}
+@media(prefers-reduced-motion:reduce){.spotlight-promise span{animation:none}}
 .badge{background:var(--surface-2);color:var(--ink)}
 .badge.status{background:var(--accent);color:var(--accent-foreground)}
 .gallery-arrow:focus-visible,.image-modal .modal-close:focus-visible{outline-color:var(--accent)}
