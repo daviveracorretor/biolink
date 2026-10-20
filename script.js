@@ -199,7 +199,7 @@
       });
     });
   }
-  async function track(id) { if (!config.analyticsEndpoint) return; try { await fetch(config.analyticsEndpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({event:'property_view', property_id:id, timestamp:new Date().toISOString()}) }); } catch {} }
+  async function track(id) { if (!config.analyticsEndpoint) return; try { await fetchWithTimeout(config.analyticsEndpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({event:'property_view', property_id:id, timestamp:new Date().toISOString()}) },8000); } catch {} }
   function modalPhotoMarkup(p) {
     const photos = orderedPropertyPhotos(p).filter(photo => photo?.url);
     if (!photos.length && p.cover_url) return `<div class="modal-photo-item"><img src="${esc(p.cover_url)}" alt="${esc(p.title)} — foto 1" data-photo-index="0" loading="lazy"></div>`;
@@ -348,6 +348,15 @@
     if (preload.complete) requestAnimationFrame(commitImage);
   }
   function authHeaders() { return {'apikey':config.supabase.anonKey, 'Authorization':`Bearer ${state.user?.access_token || config.supabase.anonKey}`, 'Content-Type':'application/json'}; }
+  async function fetchWithTimeout(url, options = {}, timeoutMs = 45000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try { return await fetch(url, {...options,signal:controller.signal}); }
+    catch (error) {
+      if (controller.signal.aborted) throw new Error(`A conexão demorou mais de ${Math.round(timeoutMs/1000)} segundos. Verifique sua internet e tente novamente.`);
+      throw error;
+    } finally { clearTimeout(timer); }
+  }
   async function ensureFreshAdminSession(force = false) {
     if (!state.user) throw new Error('Entre novamente na área de gerenciamento para continuar.');
     const current = state.user;
@@ -356,11 +365,11 @@
     if (state.refreshPromise) return state.refreshPromise;
     if (!current.refresh_token) throw new Error('Sua sessão administrativa expirou. Entre novamente para continuar.');
     state.refreshPromise = (async () => {
-      const response = await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/token?grant_type=refresh_token`, {
+      const response = await fetchWithTimeout(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/token?grant_type=refresh_token`, {
         method:'POST',
         headers:{apikey:config.supabase.anonKey,'Content-Type':'application/json'},
         body:JSON.stringify({refresh_token:current.refresh_token})
-      });
+      },30000);
       if (!response.ok) {
         state.user = null;
         renderAdmin();
@@ -377,7 +386,8 @@
   }
   async function adminFetch(url, options = {}) {
     await ensureFreshAdminSession();
-    const send = () => fetch(url,{...options,headers:{...(options.headers || {}),apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`}});
+    const {timeoutMs = 45000,...fetchOptions} = options;
+    const send = () => fetchWithTimeout(url,{...fetchOptions,headers:{...(fetchOptions.headers || {}),apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`}},timeoutMs);
     let response = await send();
     if (response.status === 401 || response.status === 403) {
       const errorBody = (await response.clone().text()).toLowerCase();
@@ -391,7 +401,7 @@
   async function api(path, options={}) {
     const url = `${config.supabase.url.replace(/\/$/,'')}/rest/v1/${path}`;
     const jsonOptions = {...options,headers:{'Content-Type':'application/json',...(options.headers || {})}};
-    const response = state.user ? await adminFetch(url,jsonOptions) : await fetch(url,{...jsonOptions,headers:{...authHeaders(),...(jsonOptions.headers || {})}});
+    const response = state.user ? await adminFetch(url,jsonOptions) : await fetchWithTimeout(url,{...jsonOptions,headers:{...authHeaders(),...(jsonOptions.headers || {})}},30000);
     const body = await response.text();
     if (!response.ok) throw new Error(`Supabase (${response.status}): ${(body || response.statusText).slice(0,350)}`);
     // PostgREST returns an empty body for Prefer: return=minimal (commonly HTTP 201 on insert).
@@ -408,7 +418,7 @@
     renderCategories(); renderProperties(); renderAdmin();
   }
   function login() { const dialog=$('#admin-login-dialog'); $('#admin-login-error').textContent=''; dialog.showModal(); $('#admin-login-form').elements.email.focus(); }
-  async function submitAdminLogin(event) { event.preventDefault(); const form=event.currentTarget; const email=form.elements.email.value.trim(); const password=form.elements.password.value; const error=$('#admin-login-error'); const submit=form.querySelector('[type="submit"]'); error.textContent='Verificando acesso…'; submit.disabled=true; try { const r=await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:config.supabase.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email,password})}); if(!r.ok)throw Error('Credenciais inválidas ou serviço indisponível.'); const session=await r.json(); if(!config.supabase.adminUserId || session.user?.id?.toLowerCase()!==config.supabase.adminUserId.toLowerCase()){await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${session.access_token}`}}).catch(()=>{});throw Error('Esta conta não está autorizada a administrar o site.');} session.expires_at=session.expires_at || Math.floor(Date.now()/1000)+Number(session.expires_in||3600); state.user=session; form.reset(); $('#admin-login-dialog').close(); $('#admin-login').hidden=true; $('#admin-logout').hidden=false; $('#property-form').hidden=false; await loadCatalog(); }catch(e){error.textContent=e.message;}finally{form.elements.password.value='';submit.disabled=false;} }
+  async function submitAdminLogin(event) { event.preventDefault(); const form=event.currentTarget; const email=form.elements.email.value.trim(); const password=form.elements.password.value; const error=$('#admin-login-error'); const submit=form.querySelector('[type="submit"]'); error.textContent='Verificando acesso…'; submit.disabled=true; try { const r=await fetchWithTimeout(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:config.supabase.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email,password})},30000); if(!r.ok)throw Error('Credenciais inválidas ou serviço indisponível.'); const session=await r.json(); if(!config.supabase.adminUserId || session.user?.id?.toLowerCase()!==config.supabase.adminUserId.toLowerCase()){await fetchWithTimeout(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${session.access_token}`}},10000).catch(()=>{});throw Error('Esta conta não está autorizada a administrar o site.');} session.expires_at=session.expires_at || Math.floor(Date.now()/1000)+Number(session.expires_in||3600); state.user=session; form.reset(); $('#admin-login-dialog').close(); $('#admin-login').hidden=true; $('#admin-logout').hidden=false; $('#property-form').hidden=false; await loadCatalog(); }catch(e){error.textContent=e.message;}finally{form.elements.password.value='';submit.disabled=false;} }
   function renderAdmin() {
     $('#admin-login').hidden=!hasSupabase()||!config.supabase.adminUserId||!!state.user; $('#admin-logout').hidden=!state.user; $('#property-form').hidden=!state.user;
     const tools = $('#admin-property-tools');
@@ -467,17 +477,21 @@
         const localPhoto = state.pendingPhotos.find(photo => photo.path === localPath);
         const path = `${propertyId}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
         try {
-          const response = await adminFetch(`${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/${config.supabase.bucket}/${path}`,{method:'POST',headers:{'Content-Type':file.type,'x-upsert':'true'},body:file});
-          if (!response.ok) throw Error(`Falha ao enviar ${file.name}: ${await response.text()}`);
+          onProgress(completed, uploads.length, file.name);
+          const response = await adminFetch(`${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/${config.supabase.bucket}/${path}`,{method:'POST',headers:{'Content-Type':file.type,'x-upsert':'true'},body:file,timeoutMs:120000});
+          if (!response.ok) throw Error(`Falha ao enviar “${file.name}” (${response.status}): ${(await response.text()).slice(0,240)}`);
           results[index] = {localPath,localPhoto,path};
           completed++;
-          onProgress(completed, uploads.length);
-        } catch (error) { errors.push(error); }
+          onProgress(completed, uploads.length, '');
+        } catch (error) {
+          if (error.message.includes('120 segundos')) error = new Error(`O envio de “${file.name}” excedeu 2 minutos. Confira sua conexão e tente novamente; o anúncio ainda não foi gravado.`);
+          errors.push(error);
+        }
       }
     };
-    await Promise.all(Array.from({length:Math.min(4,uploads.length)},worker));
+    await Promise.all(Array.from({length:Math.min(2,uploads.length)},worker));
     if (errors.length) {
-      await Promise.all(results.filter(Boolean).map(({path}) => adminFetch(`${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/${config.supabase.bucket}/${path}`,{method:'DELETE'}).catch(()=>{})));
+      await Promise.all(results.filter(Boolean).map(({path}) => adminFetch(`${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/${config.supabase.bucket}/${path}`,{method:'DELETE',timeoutMs:10000}).catch(()=>{})));
       throw errors[0];
     }
     for (const {localPath,localPhoto,path} of results) {
@@ -499,7 +513,7 @@
     submit.disabled = true;
     submit.textContent = state.uploadFiles.length ? `Enviando fotos 0/${state.uploadFiles.length}…` : 'Salvando…';
     try {
-      await uploadPhotos([...state.uploadFiles], id, (done,total) => { submit.textContent = `Enviando fotos ${done}/${total}…`; });
+      await uploadPhotos([...state.uploadFiles], id, (done,total,currentFile) => { submit.textContent = currentFile ? `Enviando ${done+1}/${total}: ${currentFile.slice(0,18)}…` : `Enviando fotos ${done}/${total}…`; });
       submit.textContent = 'Salvando anúncio…';
       const payload = {
         title: formData.get('title'), description: formData.get('description'), category: formData.get('category'), region: formData.get('region'),
@@ -566,11 +580,11 @@
       submit.disabled = true;
       status.textContent = 'Salvando sua nova senha…';
       try {
-        const response = await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/user`, {
+        const response = await fetchWithTimeout(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/user`, {
           method: 'PUT',
           headers: { apikey: config.supabase.anonKey, Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ password })
-        });
+        },30000);
         if (!response.ok) throw new Error((await response.text()).slice(0, 250));
         accessToken = null;
         form.hidden = true;
@@ -589,7 +603,7 @@
     $('#admin-login-cancel').onclick=()=>$('#admin-login-dialog').close();
     $('#admin-login-dialog').addEventListener('close',()=>{const form=$('#admin-login-form');if(!state.user)form.reset();});
     $('#admin-logout').onclick=async()=>{
-      try{await fetch(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`}});}catch{}
+      try{await fetchWithTimeout(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`}},10000);}catch{}
       state.user=null;$('#property-form').reset();clearPendingPhotos();setPropertyFormMode(false);$('#property-form').hidden=true;await loadCatalog();
     };
     $('#property-form').addEventListener('submit',saveProperty);
