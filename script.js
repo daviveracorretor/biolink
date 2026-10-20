@@ -448,22 +448,47 @@
     $$('[data-preview-photo-move]').forEach(button => button.onclick = () => movePendingPhoto(Number(button.dataset.previewPhotoMove),Number(button.dataset.moveTo)));
     enablePhotoDragging($('#photo-preview'), '.photo-preview-item', movePendingPhoto);
   }
-  async function uploadPhotos(files, propertyId) {
+  async function uploadPhotos(files, propertyId, onProgress = () => {}) {
     for (const {file} of files) {
       if (!ALLOWED_PROPERTY_PHOTO_TYPES.has(file.type)) throw Error(`Formato não permitido para “${file.name}”. Use JPEG, PNG, WebP, AVIF, HEIC ou HEIF.`);
       if (file.size > MAX_PROPERTY_PHOTO_SIZE) throw Error(`“${file.name}” excede o limite de 20 MB por foto.`);
     }
-    for(const {file,localPath} of files) {
+    const uploads = files.filter(({localPath}) => state.pendingPhotos.some(photo => photo.path === localPath));
+    if (!uploads.length) return;
+    let nextIndex = 0;
+    let completed = 0;
+    const results = new Array(uploads.length);
+    const errors = [];
+    const worker = async () => {
+      while (true) {
+        const index = nextIndex++;
+        if (index >= uploads.length) return;
+        const {file,localPath} = uploads[index];
+        const localPhoto = state.pendingPhotos.find(photo => photo.path === localPath);
+        const path = `${propertyId}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+        try {
+          const response = await adminFetch(`${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/${config.supabase.bucket}/${path}`,{method:'POST',headers:{'Content-Type':file.type,'x-upsert':'true'},body:file});
+          if (!response.ok) throw Error(`Falha ao enviar ${file.name}: ${await response.text()}`);
+          results[index] = {localPath,localPhoto,path};
+          completed++;
+          onProgress(completed, uploads.length);
+        } catch (error) { errors.push(error); }
+      }
+    };
+    await Promise.all(Array.from({length:Math.min(4,uploads.length)},worker));
+    if (errors.length) {
+      await Promise.all(results.filter(Boolean).map(({path}) => adminFetch(`${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/${config.supabase.bucket}/${path}`,{method:'DELETE'}).catch(()=>{})));
+      throw errors[0];
+    }
+    for (const {localPath,localPhoto,path} of results) {
       const localIndex = state.pendingPhotos.findIndex(photo => photo.path === localPath);
       if (localIndex < 0) continue;
-      const localPhoto = state.pendingPhotos[localIndex];
-      const path=`${propertyId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
-      const r=await adminFetch(`${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/${config.supabase.bucket}/${path}`,{method:'POST',headers:{'Content-Type':file.type,'x-upsert':'true'},body:file});
-      if(!r.ok)throw Error(`Falha ao enviar ${file.name}: ${await r.text()}`);
       state.pendingPhotos[localIndex] = {path,url:mediaUrl(path)};
       if (state.coverPhoto === localPath || !state.coverPhoto) state.coverPhoto = path;
-      URL.revokeObjectURL(localPhoto.url);
+      if (localPhoto?.url) URL.revokeObjectURL(localPhoto.url);
     }
+    const uploadedPaths = new Set(uploads.map(({localPath}) => localPath));
+    state.uploadFiles = state.uploadFiles.filter(({localPath}) => !uploadedPaths.has(localPath));
   }
   async function saveProperty(event) {
     event.preventDefault();
@@ -472,9 +497,10 @@
     const formData = new FormData(form);
     const id = formData.get('id') || crypto.randomUUID();
     submit.disabled = true;
-    submit.textContent = 'Salvando…';
+    submit.textContent = state.uploadFiles.length ? `Enviando fotos 0/${state.uploadFiles.length}…` : 'Salvando…';
     try {
-      await uploadPhotos([...state.uploadFiles], id);
+      await uploadPhotos([...state.uploadFiles], id, (done,total) => { submit.textContent = `Enviando fotos ${done}/${total}…`; });
+      submit.textContent = 'Salvando anúncio…';
       const payload = {
         title: formData.get('title'), description: formData.get('description'), category: formData.get('category'), region: formData.get('region'),
         price: Number(formData.get('price')) || null, area: Number(formData.get('area')) || null,
@@ -484,15 +510,19 @@
         payment: formData.get('payment'), code: formData.get('id') ? formData.get('code') : undefined, status: formData.get('status'),
         featured: formData.get('featured') === 'on', photos: state.pendingPhotos, cover: state.coverPhoto || state.pendingPhotos[0]?.path || null
       };
-      if (formData.get('id')) {
-        await api(`${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(id)}`, { method:'PATCH', headers:{Prefer:'return=minimal'}, body:JSON.stringify(payload) });
-      } else {
-        const inserted = await api(encodeURIComponent(config.supabase.table), { method:'POST', headers:{Prefer:'return=representation'}, body:JSON.stringify({id,...payload}) });
-        payload.code = inserted?.[0]?.code || '';
-      }
+      const savePath = formData.get('id')
+        ? `${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(id)}`
+        : encodeURIComponent(config.supabase.table);
+      const saveOptions = formData.get('id')
+        ? {method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(payload)}
+        : {method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({id,...payload})};
+      const savedRows = await api(savePath,saveOptions);
+      const existingIndex = state.properties.findIndex(property => String(property.id) === String(id));
+      const savedProperty = savedRows?.[0] || {...(existingIndex >= 0 ? state.properties[existingIndex] : {}),...payload,id};
+      if (existingIndex >= 0) state.properties[existingIndex] = savedProperty;
+      else state.properties.unshift(savedProperty);
       form.reset(); clearPendingPhotos(); setPropertyFormMode(false); renderPhotoPreview();
-      await loadCatalog();
-      const savedProperty = state.properties.find(property => String(property.id) === String(id));
+      renderCategories(); renderProperties(); renderAdmin();
       const savedCode = savedProperty?.code || payload.code;
       setAdminStatus(`“${payload.title}” salvo como ${payload.status}.${savedCode ? ` Código ${savedCode}.` : ' O código será exibido na lista após a próxima atualização.'}`);
     } catch (error) {
