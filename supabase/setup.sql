@@ -9,6 +9,11 @@ create table if not exists public.properties (
   category text,
   region text,
   price numeric,
+  price_display text not null default 'total' check (price_display in ('total', 'entry', 'both')),
+  entry_price numeric check (entry_price is null or entry_price >= 0),
+  entry_label text not null default 'Entrada' check (entry_label in ('Entrada', 'Sinal')),
+  entry_installments integer check (entry_installments is null or entry_installments > 0),
+  display_order integer not null default 0,
   area numeric,
   bedrooms integer,
   suites integer,
@@ -120,6 +125,34 @@ drop policy if exists "Only site owner deletes listings" on public.properties;
 create policy "Only site owner deletes listings"
   on public.properties for delete to authenticated
   using (auth.uid() = 'd4f4490d-96f2-406b-bced-6f0a27d31116'::uuid);
+
+create or replace function public.reorder_properties(property_ids uuid[])
+returns void
+language plpgsql
+set search_path = pg_catalog, public
+as $$
+begin
+  if auth.uid() is distinct from 'd4f4490d-96f2-406b-bced-6f0a27d31116'::uuid then
+    raise exception 'Only the site administrator may reorder properties.' using errcode = '42501';
+  end if;
+  if coalesce(cardinality(property_ids), 0) <> (select count(*) from public.properties)
+     or exists (
+       select 1 from public.properties p
+       where not (p.id = any(coalesce(property_ids, '{}'::uuid[])))
+     ) then
+    raise exception 'The order must include every property exactly once.' using errcode = '22023';
+  end if;
+  if cardinality(property_ids) <> (select count(distinct id) from unnest(property_ids) as ids(id)) then
+    raise exception 'Duplicate property IDs are not allowed.' using errcode = '22023';
+  end if;
+  update public.properties p
+  set display_order = ordered.position - 1
+  from unnest(property_ids) with ordinality as ordered(id, position)
+  where p.id = ordered.id;
+end;
+$$;
+revoke all on function public.reorder_properties(uuid[]) from public, anon;
+grant execute on function public.reorder_properties(uuid[]) to authenticated;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
