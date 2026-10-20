@@ -12,6 +12,19 @@
   const hasSupabase = () => Boolean(config.supabase?.url && config.supabase?.anonKey);
   const wa = (message = 'Olá, Davi! Gostaria de conversar sobre imóveis em Cascavel.') => config.whatsapp ? `https://wa.me/${encodeURIComponent(config.whatsapp)}?text=${encodeURIComponent(message)}` : '#admin';
   const money = n => n ? `A partir de ${Number(n).toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:2 })}` : 'Consulte condições';
+  const propertyOrder = (a,b) => Number(Boolean(b.featured))-Number(Boolean(a.featured)) || Number(a.display_order ?? Number.MAX_SAFE_INTEGER)-Number(b.display_order ?? Number.MAX_SAFE_INTEGER) || String(b.created_at||'').localeCompare(String(a.created_at||''));
+  function propertyPriceMarkup(property, className) {
+    const mode = ['entry','both'].includes(property.price_display) ? property.price_display : 'total';
+    const total = Number(property.price) > 0;
+    const entry = Number(property.entry_price) > 0;
+    const entryName = property.entry_label === 'Sinal' ? 'Sinal' : 'Entrada';
+    const installments = Number(property.entry_installments) > 0 ? `<small>${esc(entryName)} em até ${esc(property.entry_installments)}x</small>` : '';
+    const totalLine = total ? `<span class="price-line">${mode==='both'?'<span class="price-kind">Valor total</span>':''}${money(property.price)}</span>` : '';
+    const entryLine = entry ? `<span class="price-line"><span class="price-kind">${esc(entryName)}</span>${money(property.entry_price)}${installments}</span>` : '';
+    if (mode === 'entry' && entry) return `<div class="${className} price-lines">${entryLine}</div>`;
+    if (mode === 'both') return `<div class="${className} price-lines">${totalLine}${entryLine}${!total && !entry ? '<span class="price-line">Consulte condições</span>':''}</div>`;
+    return `<div class="${className} price-lines">${totalLine || '<span class="price-line">Consulte condições</span>'}</div>`;
+  }
   const categoryKey = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
   const categoryAliases = { planta:'Planta', novos:'Planta', lancamento:'Planta', lancamentos:'Planta', cohapar:'Cohapar', mcmv:'Cohapar', 'minha casa minha vida':'Cohapar', lotes:'Lotes', terrenos:'Lotes', prontos:'Prontos', casas:'Prontos', 'apartamentos prontos':'Prontos' };
   const categoryCodePrefixes = { planta:'PL', novos:'PL', lancamentos:'PL', cohapar:'CH', 'minha casa minha vida':'CH', lotes:'LT', terrenos:'LT', prontos:'PR', casas:'PR', 'apartamentos prontos':'PR' };
@@ -118,7 +131,7 @@
   function renderProperties() {
     state.cardSlideshowCleanups.forEach(cleanup => cleanup());
     state.cardSlideshowCleanups = [];
-    const list = filteredProperties().sort((a,b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured))); const grid = $('#property-grid');
+    const list = filteredProperties().sort(propertyOrder); const grid = $('#property-grid');
     $('#listing-count').textContent = `${list.length} ${list.length === 1 ? 'imóvel' : 'imóveis'}`;
     $('#empty-state').hidden = list.length > 0; grid.innerHTML = list.map(p => {
       const photos = orderedPropertyPhotos(p).filter(photo => photo?.url);
@@ -129,7 +142,7 @@
       const categoryClass = `category-${categoryKey(category).replace(/[^a-z0-9]+/g, '-')}`;
       const facts = [p.bedrooms ? `${esc(p.bedrooms)} quartos`:'', p.area ? `${decimal(p.area)} m²`:'', p.parking ? `${esc(p.parking)} vagas`:'' ].filter(Boolean).join(' · ');
       const morePhotos = photos.length > 1 ? `<button type="button" class="card-more-photos" aria-label="Ver todas as ${photos.length} fotos de ${esc(p.title)}">Ver mais fotos <span aria-hidden="true">↗</span></button>` : '';
-      return `<article class="property-card" tabindex="0" role="button" data-id="${esc(p.id)}"><div class="property-image">${cover ? `<img src="${esc(cover)}" alt="${esc(p.title)}" data-photo-index="${initialIndex}" loading="lazy">`:''}<div class="property-badges">${tags}</div><span class="property-category-badge ${categoryClass}">${esc(category)}</span>${morePhotos}</div><div class="property-copy"><h3>${esc(p.title)}</h3><p class="property-region">${esc(p.region || 'Cascavel, PR')}</p><p class="property-price">${money(p.price)}</p>${facts ? `<p class="property-meta">${facts}</p>`:''}</div></article>`;
+      return `<article class="property-card" tabindex="0" role="button" data-id="${esc(p.id)}"><div class="property-image">${cover ? `<img src="${esc(cover)}" alt="${esc(p.title)}" data-photo-index="${initialIndex}" loading="lazy">`:''}<div class="property-badges">${tags}</div><span class="property-category-badge ${categoryClass}">${esc(category)}</span>${morePhotos}</div><div class="property-copy"><h3>${esc(p.title)}</h3><p class="property-region">${esc(p.region || 'Cascavel, PR')}</p>${propertyPriceMarkup(p,'property-price')}${facts ? `<p class="property-meta">${facts}</p>`:''}</div></article>`;
     }).join('');
     $$('.property-card', grid).forEach(card => { card.onclick = () => openProperty(card.dataset.id); card.onkeydown = e => { if (e.target.closest('.card-more-photos')) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProperty(card.dataset.id); } }; });
     $$('.card-more-photos', grid).forEach(button => button.onclick = event => { event.preventDefault(); event.stopPropagation(); openProperty(button.closest('.property-card').dataset.id); });
@@ -306,7 +319,7 @@
     const features = propertyFeatures(p); const floorPlans = propertyFloorPlans(p);
     const url = new URL(location.href); url.hash = `imovel-${encodeURIComponent(p.id)}`;
     const contact = wa(`Olá, Davi! Tenho interesse no imóvel ${p.title}${p.code ? ` (código ${p.code})`:''}.`);
-    $('#modal-content').innerHTML = `<div class="modal-gallery">${modalPhotoMarkup(p)}</div>${state.user && String(p.id) !== 'preview' && p.photos?.length > 1 ? '<p class="photo-order-hint">Administrador: arraste a alça ⠿ para reordenar. A primeira foto será a capa; a ordem é salva automaticamente.</p>':''}<div class="modal-copy"><p class="eyebrow">${esc(canonicalCategory(p.category))} · ${esc(p.region || 'Cascavel, PR')}</p><h2>${esc(p.title)}</h2><p class="modal-price">${money(p.price)}</p>${p.code ? `<p>Código do anúncio: ${esc(p.code)}</p>`:''}<div class="modal-facts">${facts.map(x=>`<span>${esc(x[0])}: ${esc(x[1])}</span>`).join('')}</div><p>${esc(p.description || '')}</p>${features.length ? `<h3>Diferenciais</h3><p>${esc(features.join(' · '))}</p>`:''}${floorPlans.length ? `<h3>Plantas disponíveis</h3><ul class="modal-floor-plans">${floorPlans.map(floorPlanLabel).filter(Boolean).map(plan=>`<li>${esc(plan)}</li>`).join('')}</ul>`:''}${p.payment ? `<h3>Condições de pagamento</h3><p>${esc(p.payment)}</p>`:''}<div class="share-actions"><a class="button button-primary" href="${esc(contact)}" ${config.whatsapp?'target="_blank" rel="noopener"':''}>Falar sobre este imóvel ↗</a><button class="button button-secondary" id="copy-property-link">Copiar link</button><button class="button button-secondary" id="share-property">Compartilhar</button></div></div>`;
+    $('#modal-content').innerHTML = `<div class="modal-gallery">${modalPhotoMarkup(p)}</div>${state.user && String(p.id) !== 'preview' && p.photos?.length > 1 ? '<p class="photo-order-hint">Administrador: arraste a alça ⠿ para reordenar. A primeira foto será a capa; a ordem é salva automaticamente.</p>':''}<div class="modal-copy"><p class="eyebrow">${esc(canonicalCategory(p.category))} · ${esc(p.region || 'Cascavel, PR')}</p><h2>${esc(p.title)}</h2>${propertyPriceMarkup(p,'modal-price')}${p.code ? `<p>Código do anúncio: ${esc(p.code)}</p>`:''}<div class="modal-facts">${facts.map(x=>`<span>${esc(x[0])}: ${esc(x[1])}</span>`).join('')}</div><p>${esc(p.description || '')}</p>${features.length ? `<h3>Diferenciais</h3><p>${esc(features.join(' · '))}</p>`:''}${floorPlans.length ? `<h3>Plantas disponíveis</h3><ul class="modal-floor-plans">${floorPlans.map(floorPlanLabel).filter(Boolean).map(plan=>`<li>${esc(plan)}</li>`).join('')}</ul>`:''}${p.payment ? `<h3>Condições de pagamento</h3><p>${esc(p.payment)}</p>`:''}<div class="share-actions"><a class="button button-primary" href="${esc(contact)}" ${config.whatsapp?'target="_blank" rel="noopener"':''}>Falar sobre este imóvel ↗</a><button class="button button-secondary" id="copy-property-link">Copiar link</button><button class="button button-secondary" id="share-property">Compartilhar</button></div></div>`;
     $$('.modal-gallery img').forEach(img => img.onclick = () => showLarge(Number(img.dataset.photoIndex)));
     $$('[data-modal-photo-move]').forEach(button => button.onclick = () => movePropertyPhoto(p, Number(button.dataset.modalPhotoMove), Number(button.dataset.moveTo)));
     if (state.user && String(p.id) !== 'preview') enablePhotoDragging($('.modal-gallery'), '.modal-photo-item', (from,to) => movePropertyPhoto(p,from,to));
@@ -428,11 +441,70 @@
     const query = $('#admin-search').value.trim().toLocaleLowerCase('pt-BR');
     const selectedCategory = categoryFilter.value;
     const selectedStatus = $('#admin-status-filter').value;
-    const matches = state.properties.filter(p => (!query || `${p.title||''} ${p.code||''}`.toLocaleLowerCase('pt-BR').includes(query)) && (!selectedCategory || canonicalCategory(p.category) === selectedCategory) && (!selectedStatus || p.status === selectedStatus));
-    $('#admin-list').innerHTML=state.user?(matches.length?matches.map(p=>`<div class="admin-row"><div class="admin-row-main"><strong>${esc(p.title)}</strong><span>${esc(canonicalCategory(p.category)||'Imóvel')} · ${esc(p.status)} · ${esc(p.code||'Sem código')}</span></div><span class="admin-row-actions"><button class="text-button" data-copy-code="${esc(p.id)}">Copiar código</button><button class="text-button" data-edit="${esc(p.id)}">Editar</button><button class="text-button" data-delete="${esc(p.id)}">Excluir</button></span></div>`).join(''):'<p class="admin-list-empty">Nenhum imóvel corresponde a essa busca.</p>'):'';
+    const matches = state.properties.filter(p => (!query || `${p.title||''} ${p.code||''}`.toLocaleLowerCase('pt-BR').includes(query)) && (!selectedCategory || canonicalCategory(p.category) === selectedCategory) && (!selectedStatus || p.status === selectedStatus)).sort(propertyOrder);
+    const filtered = Boolean(query || selectedCategory || selectedStatus);
+    $('#admin-order-hint').textContent = filtered ? 'Limpe a busca e os filtros para reordenar a lista completa.' : matches.length > 1 ? 'Arraste pelo ícone para organizar. Os imóveis em destaque continuam no topo.' : '';
+    $('#admin-list').innerHTML=state.user?(matches.length?matches.map((p,index)=>`<div class="admin-row" data-property-sort-item="${index}" data-featured="${Boolean(p.featured)}"><button class="property-drag-handle" type="button" data-property-drag="${esc(p.id)}" aria-label="Arrastar ${esc(p.title)} para reordenar" title="Arraste para organizar" ${filtered || matches.length<2 || state.orderSaving?'hidden':''}>⠿</button><div class="admin-row-main"><strong>${esc(p.title)}</strong><span>${esc(canonicalCategory(p.category)||'Imóvel')} · ${esc(p.status)} · ${esc(p.code||'Sem código')}</span></div><span class="admin-row-actions"><button class="text-button" data-copy-code="${esc(p.id)}">Copiar código</button><button class="text-button" data-edit="${esc(p.id)}">Editar</button><button class="text-button" data-delete="${esc(p.id)}">Excluir</button></span></div>`).join(''):'<p class="admin-list-empty">Nenhum imóvel corresponde a essa busca.</p>'):'';
     $$('[data-copy-code]').forEach(b=>b.onclick=async()=>{const p=state.properties.find(item=>String(item.id)===b.dataset.copyCode);if(!p?.code){setAdminStatus('Este imóvel ainda não tem código.',true);return;}try{await navigator.clipboard.writeText(p.code);setAdminStatus(`Código ${p.code} copiado.`);}catch{setAdminStatus('Não foi possível copiar o código neste navegador.',true);}});
     $$('[data-edit]').forEach(b=>b.onclick=()=>fillForm(state.properties.find(p=>String(p.id)===b.dataset.edit)));
     $$('[data-delete]').forEach(b=>b.onclick=async()=>{const p=state.properties.find(x=>String(x.id)===b.dataset.delete);if(!confirm(`Excluir “${p.title}”? Esta ação não pode ser desfeita.`))return;try{await api(`${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(p.id)}`,{method:'DELETE'});await loadCatalog();}catch(e){setAdminStatus(`Falha ao excluir: ${e.message}`,true);}});
+    enablePropertyDragging($('#admin-list'));
+  }
+  function enablePropertyDragging(container) {
+    if (!container || state.orderSaving) return;
+    container.querySelectorAll('[data-property-drag]').forEach(handle => handle.addEventListener('pointerdown', event => {
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      event.preventDefault();
+      const source = handle.closest('.admin-row');
+      if (!source) return;
+      const from = Number(source.dataset.propertySortItem);
+      const rect = source.getBoundingClientRect();
+      const placeholder = document.createElement('div');
+      placeholder.className = 'admin-sort-placeholder';
+      placeholder.style.height = `${rect.height}px`;
+      source.before(placeholder);
+      Object.assign(source.style,{position:'fixed',left:`${rect.left}px`,top:`${rect.top}px`,width:`${rect.width}px`,zIndex:'1000',pointerEvents:'none',margin:'0',transition:'none'});
+      source.classList.add('property-row-dragging');
+      container.classList.add('admin-sort-active');
+      const offsetY = event.clientY - rect.top;
+      const clear = () => { source.classList.remove('property-row-dragging'); ['position','left','top','width','zIndex','pointerEvents','margin','transition'].forEach(key=>source.style[key]='');container.classList.remove('admin-sort-active'); };
+      const finish = cancelled => {
+        handle.removeEventListener('pointermove', move);
+        handle.removeEventListener('pointerup', up);
+        handle.removeEventListener('pointercancel', cancel);
+        if (cancelled) { placeholder.replaceWith(source); clear(); return; }
+        placeholder.replaceWith(source); clear();
+        container.querySelectorAll('.admin-row').forEach((row,index)=>row.dataset.propertySortItem=String(index));
+        const to = [...container.querySelectorAll('.admin-row')].indexOf(source);
+        if (to !== from) savePropertyOrder(from,to);
+      };
+      const move = moveEvent => {
+        source.style.top = `${moveEvent.clientY-offsetY}px`;
+        const target = document.elementFromPoint(moveEvent.clientX,moveEvent.clientY)?.closest('.admin-row');
+        if (!target || target===source || target.parentElement!==container || target.dataset.featured!==source.dataset.featured) return;
+        const targetRect=target.getBoundingClientRect();
+        container.insertBefore(placeholder,moveEvent.clientY>targetRect.top+targetRect.height/2?target.nextSibling:target);
+      };
+      const up=()=>finish(false), cancel=()=>finish(true);
+      handle.addEventListener('pointermove',move); handle.addEventListener('pointerup',up); handle.addEventListener('pointercancel',cancel);
+      try { handle.setPointerCapture(event.pointerId); } catch {}
+    }));
+  }
+  async function savePropertyOrder(from,to) {
+    if (state.orderSaving) return;
+    const ordered=state.properties.slice().sort(propertyOrder);
+    if (from<0 || to<0 || from>=ordered.length || to>=ordered.length || Boolean(ordered[from].featured)!==Boolean(ordered[to].featured)) { renderAdmin(); return; }
+    const [moved]=ordered.splice(from,1); ordered.splice(to,0,moved);
+    state.orderSaving=true; setAdminStatus('Salvando a nova ordem dos imóveis…'); renderAdmin();
+    try {
+      await api('rpc/reorder_properties',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({property_ids:ordered.map(property=>property.id)})});
+      ordered.forEach((property,index)=>{property.display_order=index;});
+      renderProperties(); renderAdmin();
+      setAdminStatus('Nova ordem dos imóveis salva.');
+    } catch(error) {
+      await loadCatalog();
+      setAdminStatus(`Não foi possível salvar a ordem dos imóveis. ${error.message}`,true);
+    } finally { state.orderSaving=false; renderAdmin(); }
   }
   function setPropertyFormMode(editing, title = '') {
     $('#property-form-mode').hidden = !editing;
@@ -441,7 +513,15 @@
     $('#clear-property-form').hidden = editing;
     $('#cancel-property-edit').hidden = !editing;
   }
-  function fillForm(p) { const f=$('#property-form'); f.reset(); f.elements.id.value=p.id; ['title','description','category','region','price','area','bedrooms','suites','bathrooms','parking','payment','status'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); f.elements.code.value=p.code??''; f.elements.category.value=canonicalCategory(p.category); f.elements.features.value=propertyFeatures(p).join(', '); propertyFloorPlans(p).forEach(plan=>addFloorPlanRow(plan));f.elements.featured.checked=!!p.featured;state.pendingPhotos=orderedPropertyPhotos(p);state.coverPhoto=state.pendingPhotos[0]?.path||null;setPropertyFormMode(true,p.title);updatePropertyCodeHint();renderPhotoPreview();f.scrollIntoView({behavior:'smooth',block:'start'}); }
+  function syncPriceFields() {
+    const form=$('#property-form'), mode=form.elements.price_display.value;
+    const entryVisible=mode==='entry'||mode==='both';
+    const totalRequired=mode==='total'||mode==='both';
+    $('#price-entry-fields').hidden=!entryVisible;
+    form.elements.price.required=totalRequired;
+    form.elements.entry_price.required=entryVisible;
+  }
+  function fillForm(p) { const f=$('#property-form'); f.reset(); f.elements.id.value=p.id; ['title','description','category','region','price','area','bedrooms','suites','bathrooms','parking','payment','status','price_display','entry_price','entry_label','entry_installments'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); f.elements.price_display.value=p.price_display||'total'; f.elements.entry_label.value=p.entry_label||'Entrada'; f.elements.code.value=p.code??''; f.elements.category.value=canonicalCategory(p.category); f.elements.features.value=propertyFeatures(p).join(', '); propertyFloorPlans(p).forEach(plan=>addFloorPlanRow(plan));f.elements.featured.checked=!!p.featured;state.pendingPhotos=orderedPropertyPhotos(p);state.coverPhoto=state.pendingPhotos[0]?.path||null;syncPriceFields();setPropertyFormMode(true,p.title);updatePropertyCodeHint();renderPhotoPreview();f.scrollIntoView({behavior:'smooth',block:'start'}); }
   function movePendingPhoto(from, to) {
     if (to < 0 || to >= state.pendingPhotos.length || from < 0 || from >= state.pendingPhotos.length) return;
     const [photo] = state.pendingPhotos.splice(from, 1);
@@ -520,9 +600,11 @@
         price: Number(formData.get('price')) || null, area: Number(formData.get('area')) || null,
         bedrooms: Number(formData.get('bedrooms')) || null, suites: Number(formData.get('suites')) || null,
         bathrooms: Number(formData.get('bathrooms')) || null, parking: Number(formData.get('parking')) || null,
+        price_display:formData.get('price_display')||'total', entry_price:Number(formData.get('entry_price'))||null, entry_label:formData.get('entry_label')||'Entrada', entry_installments:Number(formData.get('entry_installments'))||null,
         features: { items:String(formData.get('features')).split(',').map(value => value.trim()).filter(Boolean), floor_plans:readFloorPlans() },
         payment: formData.get('payment'), code: formData.get('id') ? formData.get('code') : undefined, status: formData.get('status'),
-        featured: formData.get('featured') === 'on', photos: state.pendingPhotos, cover: state.coverPhoto || state.pendingPhotos[0]?.path || null
+        featured: formData.get('featured') === 'on', photos: state.pendingPhotos, cover: state.coverPhoto || state.pendingPhotos[0]?.path || null,
+        display_order:(()=>{const old=state.properties.find(property=>String(property.id)===String(id));if(old){if(!old.featured&&formData.get('featured')==='on')return Math.min(0,...state.properties.filter(property=>property.featured).map(property=>Number(property.display_order)||0))-1;return Number(old.display_order)||0;}if(formData.get('featured')==='on')return Math.min(0,...state.properties.filter(property=>property.featured).map(property=>Number(property.display_order)||0))-1;return Math.max(-1,...state.properties.map(property=>Number(property.display_order)||0))+1;})()
       };
       const savePath = formData.get('id')
         ? `${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(id)}`
@@ -608,6 +690,8 @@
     };
     $('#property-form').addEventListener('submit',saveProperty);
     $('#property-form').elements.category.addEventListener('change',updatePropertyCodeHint);
+    $('#property-form').elements.price_display.addEventListener('change',syncPriceFields);
+    syncPriceFields();
     $('#admin-search').addEventListener('input',renderAdmin);
     $('#admin-category-filter').addEventListener('change',renderAdmin);
     $('#admin-status-filter').addEventListener('change',renderAdmin);
@@ -627,12 +711,12 @@
     $('#property-form').addEventListener('reset',()=>{
       clearPendingPhotos();
       $('#floor-plans-editor').replaceChildren();
-      setTimeout(()=>{renderPhotoPreview();updatePropertyCodeHint();});
+      setTimeout(()=>{renderPhotoPreview();updatePropertyCodeHint();syncPriceFields();});
     });
     $('#cancel-property-edit').onclick=()=>{const form=$('#property-form');form.reset();setPropertyFormMode(false);renderPhotoPreview();};
     $('#preview-property').onclick=()=>{
       const f=$('#property-form');const fd=new FormData(f);
-      const temp={id:'preview',title:fd.get('title')||'Pré-visualização',description:fd.get('description'),category:fd.get('category'),region:fd.get('region'),price:fd.get('price'),status:'published',photos:state.pendingPhotos,featured:fd.get('featured')==='on',bedrooms:fd.get('bedrooms'),area:fd.get('area'),features:{items:String(fd.get('features')).split(',').map(value=>value.trim()).filter(Boolean),floor_plans:readFloorPlans()},payment:fd.get('payment')};
+      const temp={id:'preview',title:fd.get('title')||'Pré-visualização',description:fd.get('description'),category:fd.get('category'),region:fd.get('region'),price:fd.get('price'),price_display:fd.get('price_display'),entry_price:fd.get('entry_price'),entry_label:fd.get('entry_label'),entry_installments:fd.get('entry_installments'),status:'published',photos:state.pendingPhotos,featured:fd.get('featured')==='on',bedrooms:fd.get('bedrooms'),area:fd.get('area'),features:{items:String(fd.get('features')).split(',').map(value=>value.trim()).filter(Boolean),floor_plans:readFloorPlans()},payment:fd.get('payment')};
       state.properties.unshift(temp);openProperty('preview');state.properties.shift();
     };
   }
