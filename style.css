@@ -932,17 +932,54 @@ dialog[open] { animation: dialog-in .28s var(--ease-out); }
 .modal-close svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; }
 
 .property-modal > .modal-close {
-  position: sticky; top: 14px; z-index: 6;
-  float: right; margin: 14px 14px -52px 0;
+  position: absolute; top: 14px; right: 14px; z-index: 6;
+  margin: 0;
   background: rgba(18, 19, 22, .82);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
 }
 .property-modal > .photo-order-hint { margin: 14px 24px 0; padding: 10px 14px; border-radius: var(--radius-md); background: var(--surface-3); }
 
-.modal-gallery { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.modal-gallery {
+  position: relative;
+  display: flex; gap: 6px;
+  overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory; scrollbar-width: none;
+  /* A fixed height keeps the strip from collapsing while photos load and stops the slides from
+     stacking into a tall column. */
+  height: clamp(220px, 42vh, 380px);
+}
+.modal-gallery .modal-photo-item { height: 100%; }
 .modal-gallery::-webkit-scrollbar { display: none; }
 .modal-photo-item { position: relative; flex: 0 0 100%; min-width: 0; scroll-snap-align: start; }
-.modal-gallery img { width: 100%; height: clamp(220px, 42vh, 380px); object-fit: cover; cursor: zoom-in; }
+.modal-gallery img { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; }
+/* Public gallery navigation: a photo counter pill with only two arrows, bottom-right. */
+.modal-gallery-nav {
+  position: absolute; right: 14px; bottom: 14px; z-index: 3;
+  /* the pill lives inside the photo strip, which is the positioning context */
+  display: flex; align-items: center; gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--hairline-strong); border-radius: var(--radius-md);
+  background: rgba(18, 19, 22, .82);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.modal-gallery-nav button {
+  display: grid; place-items: center;
+  width: 32px; height: 32px; padding: 0;
+  border: 0; border-radius: 8px;
+  background: transparent; color: #fff;
+  transition: background-color .2s ease;
+}
+.modal-gallery-nav button:hover { background: rgba(255, 255, 255, .14); }
+.modal-gallery-nav button:disabled { opacity: .35; cursor: not-allowed; }
+.modal-gallery-nav svg {
+  width: 16px; height: 16px; fill: none;
+  stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.modal-gallery-count {
+  min-width: 46px;
+  color: #fff; font-size: 11.5px; font-weight: 600; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
 .modal-photo-order {
   position: absolute; right: 12px; bottom: 12px;
   display: flex; align-items: center; gap: 4px; padding: 4px;
@@ -957,7 +994,9 @@ dialog[open] { animation: dialog-in .28s var(--ease-out); }
 .modal-photo-order button:disabled { opacity: .35; cursor: not-allowed; }
 .modal-photo-order .photo-drag-handle { border-color: var(--hairline-strong); background: var(--surface-3); color: #fff; }
 
-.modal-copy { padding: 24px 24px 6px; }
+.modal-copy { padding: 24px 24px 8px; }
+.property-modal { position: relative; }
+.property-modal .modal-copy { padding-bottom: 90px; }
 .modal-copy h2 { margin: 4px 0 10px; font-size: clamp(22px, 3vw, 28px); font-weight: 700; line-height: 1.16; letter-spacing: -.025em; }
 .modal-copy > p { margin: 0 0 12px; color: var(--label); font-size: 14.5px; line-height: 1.7; }
 .modal-copy > p.eyebrow { color: var(--label); font-size: 11px; }
@@ -987,6 +1026,8 @@ dialog[open] { animation: dialog-in .28s var(--ease-out); }
   background: var(--surface-3); color: var(--label-strong); font-size: 13px;
 }
 .share-actions {
+  /* Sticky inside the dialog so the WhatsApp button stays reachable, with the body content
+     ending above it thanks to the matching bottom padding on .modal-copy. */
   position: sticky; bottom: 0; z-index: 4;
   display: flex; flex-wrap: wrap; gap: 8px;
   margin: 22px -24px 0; padding: 14px 24px 18px;

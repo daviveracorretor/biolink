@@ -30,10 +30,17 @@ http.createServer((req, res) => {
   if (url.pathname === '/preview-api/properties') return send(res, 200, properties);
   if (url.pathname === '/rest/v1/properties') return send(res, 200, properties);
   if (url.pathname.startsWith('/auth/v1/')) return send(res, 400, { message: 'mock' });
+  // Normal page loads get the local-preview flag so script.js uses the mocked REST layer. Any other
+  // query (or a ?public=1 request) renders the page as a real visitor would see it.
   const file = path.join(root, url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname));
   if (!file.startsWith(root)) return send(res, 403, 'forbidden', 'text/plain');
   fs.readFile(file, (error, data) => {
     if (error) return send(res, 404, 'not found', 'text/plain');
-    send(res, 200, data, types[path.extname(file)] || 'application/octet-stream');
+    const type = types[path.extname(file)] || 'application/octet-stream';
+    if (path.basename(file) === 'index.html' && url.searchParams.get('public') !== '1') {
+      // Default: the local-preview mode, so the catalog shows the mocked properties.
+      return send(res, 200, data.toString('utf8').replace('<script src="script.js', '<script>window.__localPreview=1</script><script src="script.js'), type);
+    }
+    send(res, 200, data, type);
   });
 }).listen(port, () => console.log(`visual check on http://localhost:${port}/?local=1`));

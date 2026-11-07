@@ -14,7 +14,9 @@
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   // The local preview (tools/preview-server.js) ships a tiny REST stand-in so the admin panel can
   // be exercised without a Supabase account. It only exists on localhost; production never sees it.
-  const LOCAL_PREVIEW = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).has('local');
+  // Local preview: the flag comes from the URL (?local=1) or is injected by tools/visual-check.js.
+  // Without it the page behaves exactly like production, with no simulated admin session.
+  const LOCAL_PREVIEW = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && (window.__localPreview === 1 || new URLSearchParams(location.search).has('local'));
   const hasSupabase = () => Boolean(LOCAL_PREVIEW || (config.supabase?.url && config.supabase?.anonKey));
   const wa = (message = 'Olá, Davi! Gostaria de conversar sobre imóveis em Cascavel.') => config.whatsapp ? `https://wa.me/${encodeURIComponent(config.whatsapp)}?text=${encodeURIComponent(message)}` : '#admin';
   const money = n => n ? `A partir de ${Number(n).toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:2 })}` : 'Consulte condições';
@@ -293,7 +295,19 @@
   function modalPhotoMarkup(p, allowReorder = false) {
     const photos = orderedPropertyPhotos(p).filter(photo => photo?.url);
     if (!photos.length && p.cover_url) return `<div class="modal-photo-item"><img src="${esc(p.cover_url)}" alt="${esc(p.title)} — foto 1" data-photo-index="0" loading="lazy"></div>`;
-    return photos.map((photo,i) => `<div class="modal-photo-item" data-photo-sort-item="${i}"><img src="${esc(photo.url)}" alt="${esc(p.title)} — foto ${i+1}" data-photo-index="${i}" loading="lazy">${allowReorder ? `<div class="modal-photo-order"><button type="button" class="photo-drag-handle" data-photo-drag="${i}" aria-label="Arrastar foto ${i+1} para reordenar" title="Arraste para mudar a ordem"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg></button><button type="button" data-modal-photo-move="${i}" data-move-to="${i-1}" ${i===0?'disabled':''} aria-label="Mover foto ${i+1} para antes">↑</button><button type="button" data-modal-photo-move="${i}" data-move-to="${i+1}" ${i===photos.length-1?'disabled':''} aria-label="Mover foto ${i+1} para depois">↓</button></div>`:''}</div>`).join('');
+    // Visitors get exactly two controls on the photo strip: previous and next (plus the counter).
+    // The drag handle and the reorder arrows are admin tooling and are only rendered for the
+    // signed-in administrator, never for the public.
+    // A single navigation pill for the whole strip, so the DOM never repeats 30 counters.
+    const nav = !allowReorder && photos.length > 1
+      ? `<div class="modal-gallery-nav"><button type="button" data-gallery-step="-1" aria-label="Foto anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5.5-6.5 6.5 6.5 6.5"/></svg></button><span class="modal-gallery-count">1 / ${photos.length}</span><button type="button" data-gallery-step="1" aria-label="Próxima foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></svg></button></div>`
+      : '';
+    return photos.map((photo, i) => {
+      const reorder = allowReorder
+        ? `<div class="modal-photo-order"><button type="button" class="photo-drag-handle" data-photo-drag="${i}" aria-label="Arrastar foto ${i+1} para reordenar" title="Arraste para mudar a ordem"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg></button><button type="button" data-modal-photo-move="${i}" data-move-to="${i-1}" ${i===0?'disabled':''} aria-label="Mover foto ${i+1} para antes">↑</button><button type="button" data-modal-photo-move="${i}" data-move-to="${i+1}" ${i===photos.length-1?'disabled':''} aria-label="Mover foto ${i+1} para depois">↓</button></div>`
+        : '';
+      return `<div class="modal-photo-item" data-photo-sort-item="${i}"><img src="${esc(photo.url)}" alt="${esc(p.title)} — foto ${i+1}" data-photo-index="${i}" loading="lazy">${reorder}</div>`;
+    }).join('') + nav;
   }
   function enablePhotoDragging(container, itemSelector, onDrop) {
     if (!container) return;
@@ -406,8 +420,18 @@
     const canReorder = Boolean(state.user) && String(p.id) !== 'preview' && (p.photos?.length || 0) > 1;
     $('#modal-content').innerHTML = `<div class="modal-gallery">${modalPhotoMarkup(p, canReorder)}</div>${canReorder ? '<p class="photo-order-hint">Administrador: arraste a alça ⠿ para reordenar. A primeira foto é a capa e a ordem é salva automaticamente.</p>':''}<div class="modal-copy"><p class="eyebrow">${esc(canonicalCategory(p.category))} · ${esc(p.region || 'Cascavel, PR')}</p><h2>${esc(p.title)}</h2>${propertyPriceMarkup(p,'modal-price')}${p.code ? `<p>Código do anúncio: ${esc(p.code)}</p>`:''}<div class="modal-facts">${facts.map(([label, value]) => `<span><small>${esc(label)}</small>${esc(value)}</span>`).join('')}</div><p>${esc(p.description || '')}</p>${features.length ? `<h3>Diferenciais</h3><ul class="modal-features">${features.map(feature => `<li>${esc(feature)}</li>`).join('')}</ul>`:''}${floorPlans.length ? `<h3>Plantas disponíveis</h3><ul class="modal-floor-plans">${floorPlans.map(floorPlanLabel).filter(Boolean).map(plan=>`<li>${esc(plan)}</li>`).join('')}</ul>`:''}${p.payment ? `<h3>Condições de pagamento</h3><p>${esc(p.payment)}</p>`:''}<div class="share-actions"><a class="button button-primary" href="${esc(contact)}" ${config.whatsapp?'target="_blank" rel="noopener"':''}>Falar sobre este imóvel ↗</a><button class="button button-secondary" id="copy-property-link">Copiar link</button><button class="button button-secondary" id="share-property">Compartilhar</button></div></div>`;
     $$('.modal-gallery img').forEach(img => img.onclick = () => showLarge(Number(img.dataset.photoIndex || 0)));
+    $$('[data-gallery-step]').forEach(button => button.onclick = () => stepModalGallery(Number(button.dataset.galleryStep)));
     $$('[data-modal-photo-move]').forEach(button => button.onclick = () => movePropertyPhoto(p, Number(button.dataset.modalPhotoMove), Number(button.dataset.moveTo)));
     if (canReorder) enablePhotoDragging($('.modal-gallery'), '.modal-photo-item', (from,to) => movePropertyPhoto(p,from,to));
+    const strip = $('.modal-gallery');
+    if (strip && !canReorder) {
+      strip.addEventListener('scroll', () => {
+        const items = $$('.modal-photo-item', strip);
+        if (!items.length) return;
+        const width = items[0].getBoundingClientRect().width + 6;
+        updateModalGalleryCounter(Math.min(Math.round(strip.scrollLeft / width), items.length - 1), items.length);
+      }, { passive: true });
+    }
     const copyLink = async (button, label = 'Link copiado') => {
       const shareUrl = isPreview ? location.href : url.href;
       try {
@@ -428,6 +452,21 @@
     if (!$('#property-modal').open) $('#property-modal').showModal();
     history.replaceState(null,'',url);
     if (!isPreview) track(p.id);
+  }
+  // Moves the photo strip inside the property dialog by one slide and updates the "n / total" pill.
+  function stepModalGallery(direction) {
+    const strip = $('.modal-gallery');
+    if (!strip) return;
+    const items = $$('.modal-photo-item', strip);
+    if (items.length < 2) return;
+    const current = items.findIndex(item => item.getBoundingClientRect().left >= strip.getBoundingClientRect().left - 8);
+    const next = Math.min(Math.max((current < 0 ? 0 : current) + direction, 0), items.length - 1);
+    items[next].scrollIntoView({ behavior: REDUCED_MOTION.matches ? 'auto' : 'smooth', block: 'nearest', inline: 'start' });
+    updateModalGalleryCounter(next, items.length);
+  }
+  function updateModalGalleryCounter(index, total) {
+    const counter = $('.modal-gallery-count');
+    if (counter) counter.textContent = `${index + 1} / ${total}`;
   }
   function showLarge(index) {
     if (!state.gallery.length) return;
