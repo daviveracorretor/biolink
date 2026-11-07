@@ -31,15 +31,32 @@
   //    { label: 'Restante da entrada', text: 'em 40x', highlight: false },
   //    { label: 'Valor total', text: 'R$ 299 mil', highlight: false }]
   // Listings created before this model still render from price / entry_* fields.
+  // Old listings were migrated with a raw number as the text ("240,000.00"). When the stored text has
+  // no words, the value is re-formatted as currency from the numeric column instead.
+  function prettyPriceText(text, fallback) {
+    const raw = String(text || '').trim();
+    if (!raw) return fallback ? money(fallback) : '';
+    const hasWords = /[a-zA-ZÀ-ÿ]/.test(raw);
+    const looksRaw = /^\d[\d.,]*$/.test(raw);
+    if (!hasWords && looksRaw) {
+      const numeric = numericPriceOf([{ text: raw, highlight: true }]);
+      if (numeric) return money(numeric);
+    }
+    return raw;
+  }
   function priceItemsOf(property) {
     const raw = property?.price_items;
     const list = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : [];
     const items = list
-      .map(item => ({
-        label: String(item?.label ?? '').trim(),
-        text: String(item?.text ?? '').trim(),
-        highlight: Boolean(item?.highlight),
-      }))
+      .map(item => {
+        const label = String(item?.label ?? '').trim();
+        let text = String(item?.text ?? '').trim();
+        // A label that just repeats the number is not a label.
+        const cleanLabel = /^\d[\d.,]*$/.test(label) ? '' : label;
+        text = prettyPriceText(text, Number(property?.price) > 0 ? Number(property.price) : null);
+        if (cleanLabel && cleanLabel === text) return { label: '', text, highlight: Boolean(item?.highlight) };
+        return { label: cleanLabel, text, highlight: Boolean(item?.highlight) };
+      })
       .filter(item => item.label || item.text);
     if (!items.length) return legacyPriceItems(property);
     // Exactly one leading item: the flagged one, else the first.
@@ -694,12 +711,22 @@
       renderCategories(); renderProperties(); renderAdmin();
       return;
     }
-    if (!hasSupabase()) { state.properties=[]; renderCategories(); renderProperties(); setAdminStatus('O catálogo ainda não está conectado. Para publicar imóveis, configure o Supabase, o ID da sua conta administradora e as políticas de acesso descritas no README.'); return; }
+    if (!hasSupabase()) {
+      state.properties = [];
+      renderCategories();
+      renderProperties();
+      setAdminStatus('O catálogo não está conectado: o arquivo config.js não carregou ou está sem a URL e a chave do Supabase. Recarregue a página com Ctrl + Shift + R; se o aviso continuar, confira se config.js está publicado no repositório.', true);
+      return;
+    }
     try { state.properties=await api(`${encodeURIComponent(config.supabase.table)}?select=*&order=created_at.desc`) || []; setAdminStatus(state.user ? `Conectado como ${state.user.email}.` : 'Catálogo conectado. Entre como administrador para gerenciar anúncios.'); }
     catch(e) { state.properties=[]; setAdminStatus(`Não foi possível carregar o catálogo. Confira tabela, políticas de leitura e conexão. ${e.message}`,true); }
     renderCategories(); renderProperties(); renderAdmin();
   }
   function login() {
+    if (!hasSupabase()) {
+      setAdminStatus('Não é possível entrar: config.js não carregou (sem URL/chave do Supabase). Recarregue com Ctrl + Shift + R.', true);
+      return;
+    }
     const dialog = $('#admin-login-dialog');
     const form = $('#admin-login-form');
     // Enter on the "Entrar" button fired submit twice and asked Supabase for two tokens.
@@ -719,7 +746,10 @@
   function renderAdmin() {
     // In the local preview the admin session is simulated so the panel can be reviewed offline.
     if (LOCAL_PREVIEW) state.user = { local: true, email: 'preview@local' };
-    $('#admin-login').hidden = LOCAL_PREVIEW || !hasSupabase() || !config.supabase.adminUserId || !!state.user;
+    // The login button is always offered (except in the offline preview), even when config.js is
+    // missing: clicking it explains what is missing instead of leaving a dead admin panel.
+    $('#admin-login').hidden = LOCAL_PREVIEW || !!state.user;
+    $('#admin-login').disabled = !hasSupabase();
     $('#admin-logout').hidden = !state.user;
     $('#property-form').hidden = !state.user;
     const tools = $('#admin-property-tools');
@@ -1264,6 +1294,16 @@
     }, { rootMargin: '0px 0px -12% 0px', threshold: 0.08 });
     targets.forEach(target => { target.classList.add('reveal'); observer.observe(target); });
   }
+  // If config.js did not load, the page still renders, but it says so in the admin area instead of
+  // pretending everything is fine.
+  function warnMissingConfig() {
+    if (window.SITE_CONFIG) return;
+    const status = $('#admin-status');
+    if (status) {
+      status.textContent = 'config.js não carregou: sem ele o site não consulta o catálogo. Recarregue com Ctrl + Shift + R ou verifique se o arquivo está publicado.';
+      status.classList.add('is-error');
+    }
+  }
   function init() {
     // The page is a static shell that keeps working without config.js; every lookup below is
     // guarded so a missing element (or a stale cached HTML) cannot abort the whole script.
@@ -1287,6 +1327,7 @@
       if(e.key==='ArrowLeft')showLarge(state.galleryIndex-1);
       if(e.key==='ArrowRight')showLarge(state.galleryIndex+1);
     });
+    warnMissingConfig();
     setupAdmin();
     initChrome();
     initActiveNav();
