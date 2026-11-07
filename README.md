@@ -1,10 +1,35 @@
-# Davi Vera · Link na bio imobiliário
+# Davi Vera · Imóveis em Cascavel
 
-Site estático em HTML, CSS e JavaScript puro, pronto para GitHub Pages. Não requer build nem instalação.
+Site institucional estático em HTML, CSS e JavaScript puro, pronto para GitHub Pages. Não requer build nem instalação.
+
+## Design system
+
+Interface dark matte com layout Bento Grid, documentada no topo de `style.css`:
+
+- canvas `#121316`, cards em grafite `#1a1b1f`–`#222328` (elevação por tom, sem sombras pesadas) e bordas hairline `rgba(255,255,255,.07)`;
+- destaque laranja queimado `#e05328` em CTAs, item ativo da navegação e barras de progresso; verde `#4ade80` para status positivos;
+- tipografia Plus Jakarta Sans (Satoshi como reserva): KPIs de 28–36px, títulos de 16–18px e rótulos de 12–14px em `#8f94a0`;
+- raios de 20px (cards), 12px (botões e inputs) e pílula (badges, filtros e tabs);
+- microinterações: entrada em cascata dos cards (`translateY 18px → 0`, `scale .985 → 1`, `opacity 0 → 1`, curva expo.out) e hover de 200ms com clareamento sutil da superfície;
+- tema claro opcional pelo botão do topo (preferência salva em `localStorage`).
+
+O layout é responsivo em três faixas: desktop (3 colunas), tablet (2 colunas) e celular (1 coluna), com navegação recolhida e CTA compacto no celular.
+
+## Desenvolvimento local
+
+O site funciona sem servidor (basta abrir `index.html`), mas o catálogo depende do Supabase. Para revisar o layout com dados fictícios, sem tocar no banco:
+
+```bash
+node tools/preview-server.js          # ou: PREVIEW_PORT=4300 node tools/visual-check.js
+```
+
+Abra `http://localhost:4173/?local=1`. Nesse modo o painel administrativo é simulado e nenhuma chamada chega ao Supabase. Os arquivos em `tools/` não são publicados: o workflow de Pages envia apenas `index.html`, `style.css`, `script.js`, `config.js` e `assets/`.
+
+`python tools/build-assets.py` regenera a foto de perfil otimizada (`assets/davi-vera-profile.jpg`) a partir do original.
 
 ## Personalizar
 
-Edite `config.js` para informar o WhatsApp no formato internacional (DDI + DDD + número), o Instagram e o caminho da foto de perfil. A foto deve ser adicionada ao repositório, por exemplo em `assets/davi-vera.jpg`. O site começa sem anúncios porque nenhum imóvel foi fornecido.
+Edite `config.js` para informar o WhatsApp no formato internacional (DDI + DDD + número), o Instagram e o caminho da foto de perfil. A foto de perfil usada pelo site é `assets/davi-vera-profile.jpg`, gerada por `tools/build-assets.py` a partir de `assets/davi-vera.jpg`. O site começa sem anúncios porque nenhum imóvel foi fornecido.
 
 Os textos, categorias, chamada de simulação, URL e visibilidade dessa chamada também estão no `config.js`. Os links de contato usam mensagens pré-preenchidas.
 
