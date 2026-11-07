@@ -768,7 +768,7 @@
     $('#admin-order-hint').textContent = filtered ? 'Limpe a busca e os filtros para reordenar a lista completa.' : matches.length > 1 ? 'Arraste pelo ícone para organizar. Os imóveis em destaque continuam no topo.' : '';
     $('#admin-list').innerHTML=state.user?(matches.length?matches.map((p,index)=>`<div class="admin-row" data-property-sort-item="${index}" data-featured="${Boolean(p.featured)}"><button class="property-drag-handle" type="button" data-property-drag="${esc(p.id)}" aria-label="Arrastar ${esc(p.title)} para reordenar" title="Arraste para organizar" ${filtered || matches.length<2 || state.orderSaving?'hidden':''}>⠿</button><div class="admin-row-main"><strong>${esc(p.title)}</strong><span>${esc(canonicalCategory(p.category)||'Imóvel')} · ${esc(statusLabel(p.status))} · ${esc(p.code||'Sem código')}</span></div><span class="admin-row-actions"><button class="text-button" data-copy-code="${esc(p.id)}">Copiar código</button><button class="text-button" data-edit="${esc(p.id)}">Editar</button><button class="text-button" data-delete="${esc(p.id)}">Excluir</button></span></div>`).join(''):'<p class="admin-list-empty">Nenhum imóvel corresponde a essa busca.</p>'):'';
     $$('[data-copy-code]').forEach(b=>b.onclick=async()=>{const p=state.properties.find(item=>String(item.id)===b.dataset.copyCode);if(!p?.code){setAdminStatus('Este imóvel ainda não tem código.',true);return;}try{await navigator.clipboard.writeText(p.code);setAdminStatus(`Código ${p.code} copiado.`);}catch{setAdminStatus('Não foi possível copiar o código neste navegador.',true);}});
-    $$('[data-edit]').forEach(b=>b.onclick=()=>fillForm(state.properties.find(p=>String(p.id)===b.dataset.edit)));
+    $$('[data-edit]').forEach(b=>b.onclick=()=>{const p=state.properties.find(item=>String(item.id)===b.dataset.edit);if(p)rememberBeforeEditing(p);fillForm(p);});
     $$('[data-delete]').forEach(button => button.onclick = async () => {
       const property = state.properties.find(item => String(item.id) === button.dataset.delete);
       if (!property || !confirm(`Excluir “${property.title}”? Esta ação não pode ser desfeita.`)) return;
@@ -776,6 +776,7 @@
       const label = button.textContent;
       button.textContent = 'Excluindo…';
       pushHistory({ ...property }, 'Antes de excluir');
+      console.info('[histórico] versão guardada de', property.title);
       try {
         if (LOCAL_PREVIEW) {
           await fetch(`/preview-api/properties?id=${encodeURIComponent(property.id)}`, { method: 'DELETE' });
@@ -979,6 +980,15 @@
   function syncPriceFields() {
     syncPriceRows();
   }
+  // Snapshots are also kept locally the moment the edit form opens: even if the save path fails or
+  // the catalog is reloaded, the previous version is already recoverable.
+  function rememberBeforeEditing(property) {
+    if (!property?.id) return;
+    const history = readHistory();
+    const already = history[0]?.property?.id === property.id && history[0]?.action === 'Antes de editar';
+    if (already) return;
+    pushHistory({ ...property }, 'Antes de editar');
+  }
   function fillForm(p) { const f=$('#property-form'); f.reset(); f.elements.id.value=p.id; ['title','description','category','region','price','area','bedrooms','suites','bathrooms','parking','payment','status','price_display','entry_price','entry_label','entry_installments','entry_mode','price_highlight','price_highlight_label','price_secondary_label','price_extra_label'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); fillPriceRows(p); const highlightChoice=f.querySelector(`[name="price_highlight"][value="${['total','entry'].includes(p.price_highlight)?p.price_highlight:'auto'}"]`); if(highlightChoice) highlightChoice.checked=true; f.elements.code.value=p.code??''; f.elements.category.value=canonicalCategory(p.category); f.elements.features.value=propertyFeatures(p).join(', '); propertyFloorPlans(p).forEach(plan=>addFloorPlanRow(plan));f.elements.featured.checked=!!p.featured;state.pendingPhotos=orderedPropertyPhotos(p);state.coverPhoto=state.pendingPhotos[0]?.path||null;syncPriceFields();setPropertyFormMode(true,p.title);updatePropertyCodeHint();renderPhotoPreview();f.scrollIntoView({behavior:'smooth',block:'start'}); }
   function movePendingPhoto(from, to) {
     if (to < 0 || to >= state.pendingPhotos.length || from < 0 || from >= state.pendingPhotos.length) return;
@@ -1081,7 +1091,9 @@
     const host = $('#admin-history');
     if (!host) return;
     const history = readHistory();
-    host.hidden = !state.user;
+    // Visible as soon as there is something to restore, even before signing in: the whole point is
+    // to recover from a mistake quickly.
+    host.hidden = !history.length;
     if (!history.length) {
       host.innerHTML = '<p class="field-hint">Nenhuma alteração recente para desfazer.</p>';
       return;

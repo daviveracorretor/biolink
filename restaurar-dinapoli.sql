@@ -1,5 +1,10 @@
--- Restaura o Residencial Di Napoli (PL-001) apagado por acidente
+-- ============================================================
+-- Restaura o Residencial Di Napoli (apagado por acidente)
+-- Pode rodar mais de uma vez sem problema.
+-- Procura o imóvel pelo ID; se não achar, pelo título.
+-- ============================================================
 begin;
+
 update public.properties set
   code = 'PL-001',
   cover = 'eba0b7de-d9e9-44df-b7bd-5e3e6135e27c/1792267131853-Piscina.jpg',
@@ -18,5 +23,14 @@ update public.properties set
   price_secondary_label = null,
   price_extra_label = null,
   price_items = '[{"label": "Sinal", "text": "de R$ 20.000,00", "highlight": true}, {"label": "Restante da entrada", "text": "em até 40x", "highlight": false}, {"label": "Valor total", "text": "R$ 293.550,00", "highlight": false}]'::jsonb
-where id = 'f009d49e-f948-4214-a2f0-35bf3e6e3df8';
+where id = 'f009d49e-f948-4214-a2f0-35bf3e6e3df8'
+   or (title = 'Residencial Di Napoli' and code in ('PL-002','PL-001'));
+
+-- Conferência: deve mostrar code=PL-001, 30 fotos e featured=true
+select code, title, featured, price,
+       jsonb_array_length(coalesce(photos, '[]'::jsonb)) as total_fotos,
+       jsonb_array_length(coalesce(price_items, '[]'::jsonb)) as linhas_de_valor
+from public.properties
+where title = 'Residencial Di Napoli';
+
 commit;
