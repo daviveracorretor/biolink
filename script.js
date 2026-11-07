@@ -297,7 +297,7 @@
   // which keeps the arrows working even when the strip is not scrollable.
   const carousel = { index: 0, total: 0, items: [] };
   function renderCarousel(index = 0) {
-    const strip = $('.modal-gallery');
+    const strip = $('.modal-gallery-stage') || $('.modal-gallery');
     if (!strip) return;
     const items = $$('.modal-photo-item', strip);
     carousel.items = items;
@@ -337,21 +337,21 @@
   function modalPhotoMarkup(p, allowReorder = false) {
     const photos = orderedPropertyPhotos(p).filter(photo => photo?.url);
     if (!photos.length && p.cover_url) return `<div class="modal-photo-item"><img src="${esc(p.cover_url)}" alt="${esc(p.title)} — foto 1" data-photo-index="0" loading="lazy"></div>`;
-    // Visitors get exactly two controls on the photo strip: previous and next (plus the counter).
-    // The drag handle and the reorder arrows are admin tooling and are only rendered for the
-    // signed-in administrator, never for the public.
-    // A single navigation pill for the whole strip, so the DOM never repeats 30 counters.
-    const nav = !allowReorder && photos.length > 1
-      ? `<button type="button" class="modal-gallery-arrow modal-gallery-prev" data-gallery-step="-1" aria-label="Foto anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5.5-6.5 6.5 6.5 6.5"/></svg></button>
-         <button type="button" class="modal-gallery-arrow modal-gallery-next" data-gallery-step="1" aria-label="Próxima foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></svg></button>
-         <div class="modal-gallery-footer"><div class="modal-gallery-dots" aria-hidden="true"></div><span class="modal-gallery-count">1 / ${photos.length}</span></div>`
+    const many = photos.length > 1;
+    // Visitors get exactly two controls on the photo strip: previous and next, plus the position
+    // counter. The drag handle and the reorder arrows are admin tooling and are only rendered for
+    // the signed-in administrator, never for the public.
+    const nav = many && !allowReorder
+      ? `<button type="button" class="modal-gallery-arrow modal-gallery-prev" data-gallery-step="-1" aria-label="Foto anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5.5-6.5 6.5 6.5 6.5"/></svg></button><button type="button" class="modal-gallery-arrow modal-gallery-next" data-gallery-step="1" aria-label="Próxima foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></svg></button><div class="modal-gallery-footer"><div class="modal-gallery-dots" aria-hidden="true"></div><span class="modal-gallery-count">1 / ${photos.length}</span></div>`
       : '';
-    return photos.map((photo, i) => {
+    const slides = photos.map((photo, i) => {
       const reorder = allowReorder
-        ? `<div class="modal-photo-order"><button type="button" class="photo-drag-handle" data-photo-drag="${i}" aria-label="Arrastar foto ${i+1} para reordenar" title="Arraste para mudar a ordem"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg></button><button type="button" data-modal-photo-move="${i}" data-move-to="${i-1}" ${i===0?'disabled':''} aria-label="Mover foto ${i+1} para antes">↑</button><button type="button" data-modal-photo-move="${i}" data-move-to="${i+1}" ${i===photos.length-1?'disabled':''} aria-label="Mover foto ${i+1} para depois">↓</button></div>`
+        ? `<div class="modal-photo-order"><button type="button" class="photo-drag-handle" data-photo-drag="${i}" aria-label="Arrastar foto ${i+1} para reordenar" title="Arraste para mudar a ordem"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg></button><button type="button" data-modal-photo-move="${i}" data-move-to="${i-1}" ${i === 0 ? 'disabled' : ''} aria-label="Mover foto ${i+1} para antes">↑</button><button type="button" data-modal-photo-move="${i}" data-move-to="${i+1}" ${i === photos.length - 1 ? 'disabled' : ''} aria-label="Mover foto ${i+1} para depois">↓</button></div>`
         : '';
-      return `<div class="modal-photo-item" data-photo-sort-item="${i}"><img src="${esc(photo.url)}" alt="${esc(p.title)} — foto ${i+1}" data-photo-index="${i}" loading="lazy">${reorder}</div>`;
-    }).join('') + nav;
+      const active = i === 0 ? ' is-active' : '';
+      return `<div class="modal-photo-item${active}" data-photo-sort-item="${i}" data-photo-index="${i}"><img src="${esc(photo.url)}" alt="${esc(p.title)} — foto ${i+1}" data-photo-index="${i}" ${i === 0 ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async">${reorder}</div>`;
+    }).join('');
+    return `<div class="modal-gallery-stage">${slides}</div>${nav}`;
   }
   function enablePhotoDragging(container, itemSelector, onDrop) {
     if (!container) return;
@@ -470,7 +470,7 @@
       if (dot) renderCarousel(Number(dot.dataset.galleryDot));
     });
     // Swipe left/right anywhere on the photo, for touch devices.
-    const photoStrip = $('.modal-gallery');
+    const photoStrip = $('.modal-gallery-stage');
     if (photoStrip) {
       let startX = null;
       photoStrip.addEventListener('touchstart', event => { startX = event.touches[0]?.clientX ?? null; }, { passive: true });
@@ -484,7 +484,7 @@
     }
     renderCarousel(0);
     $$('[data-modal-photo-move]').forEach(button => button.onclick = () => movePropertyPhoto(p, Number(button.dataset.modalPhotoMove), Number(button.dataset.moveTo)));
-    if (canReorder) enablePhotoDragging($('.modal-gallery'), '.modal-photo-item', (from,to) => movePropertyPhoto(p,from,to));
+    if (canReorder) enablePhotoDragging($('.modal-gallery-stage'), '.modal-photo-item', (from,to) => movePropertyPhoto(p,from,to));
     const copyLink = async (button, label = 'Link copiado') => {
       const shareUrl = isPreview ? location.href : url.href;
       try {
@@ -514,7 +514,9 @@
     const dialog = $('#image-modal');
     const requestId = ++state.galleryRequestId;
     $('#gallery-count').textContent = `${state.galleryIndex + 1} / ${state.gallery.length}`;
-    $$('.gallery-arrow').forEach(arrow => { arrow.hidden = state.gallery.length < 2; });
+    // Both arrows stay visible; only a single-photo gallery hides them. They are never disabled,
+    // the viewer wraps around, which is the behaviour the visitor expects in a lightbox.
+    $$('.gallery-arrow').forEach(arrow => { arrow.hidden = state.gallery.length < 2; arrow.disabled = false; });
     if (!dialog.open) dialog.showModal();
 
     let committed = false;
