@@ -912,7 +912,10 @@
     try {
       await uploadPhotos([...state.uploadFiles], id, (done,total,currentFile) => { submit.textContent = currentFile ? `Enviando ${done+1}/${total}: ${currentFile.slice(0,18)}…` : `Enviando fotos ${done}/${total}…`; });
       submit.textContent = 'Salvando anúncio…';
-      const payload = {
+      // Only columns that exist in the table are sent. PostgREST rejects the whole request when one
+    // column is missing (PGRST204 / 42703), and that was silently discarding every edit.
+    const optional = ['entry_mode', 'price_highlight'];
+    const payload = {
         title: formData.get('title'), description: formData.get('description'), category: formData.get('category'), region: formData.get('region'),
         price: Number(formData.get('price')) || null, area: Number(formData.get('area')) || null,
         bedrooms: Number(formData.get('bedrooms')) || null, suites: Number(formData.get('suites')) || null,
@@ -937,7 +940,19 @@
       const saveOptions = formData.get('id')
         ? {method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(payload)}
         : {method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({id,...payload})};
-      const savedRows = await api(savePath,saveOptions);
+      // If the database has not been migrated yet, drop the optional columns and save the rest so the
+      // edit is never lost; the status message explains what is missing.
+      let savedRows;
+      try {
+        savedRows = await api(savePath, saveOptions);
+      } catch (error) {
+        const missing = optional.filter(column => error.message.includes(column));
+        if (!missing.length) throw error;
+        missing.forEach(column => { delete payload[column]; });
+        const retryBody = formData.get('id') ? payload : { id, ...payload };
+        savedRows = await api(savePath, { ...saveOptions, body: JSON.stringify(retryBody) });
+        setAdminStatus(`Imóvel salvo. As colunas ${missing.join(', ')} ainda não existem na tabela properties: rode a migração supabase/migrations/20261107120000_price_highlight_and_entry_mode.sql para usar o destaque de valor e a entrada só por parcelas.`, true);
+      }
       const existingIndex = state.properties.findIndex(property => String(property.id) === String(id));
       const savedProperty = savedRows?.[0] || {...(existingIndex >= 0 ? state.properties[existingIndex] : {}),...payload,id};
       if (existingIndex >= 0) state.properties[existingIndex] = savedProperty;
@@ -945,7 +960,11 @@
       form.reset(); clearPendingPhotos(); setPropertyFormMode(false); renderPhotoPreview();
       renderCategories(); renderProperties(); renderAdmin();
       const savedCode = savedProperty?.code || payload.code;
-      setAdminStatus(`“${payload.title}” salvo como ${statusLabel(payload.status).toLowerCase()}.${savedCode ? ` Código ${savedCode}.` : ' O código será exibido na lista após a próxima atualização.'}`);
+      const codeNote = savedCode ? ` Código ${savedCode}.` : ' O código será exibido na lista após a próxima atualização.';
+      const schemaNote = optionalUnavailable.length
+        ? ` Atenção: as colunas ${optionalUnavailable.join(' e ')} ainda não existem na tabela; rode a migração 20261107120000_price_highlight_and_entry_mode.sql para liberar o destaque de valor e a entrada por parcelas.`
+        : '';
+      setAdminStatus(`“${payload.title}” salvo como ${statusLabel(payload.status).toLowerCase()}.${codeNote}${schemaNote}`, Boolean(optionalUnavailable.length));
     } catch (error) {
       setAdminStatus(`Não foi possível salvar o imóvel. ${error.message}`, true);
     } finally {
