@@ -123,6 +123,7 @@ button { cursor: pointer; }
   background: var(--accent);
   box-shadow: 0 0 0 4px var(--accent-soft);
 }
+.hero-chip-ghost { background: rgba(255, 255, 255, .1); color: rgba(255, 255, 255, .88); }
 .eyebrow-light { color: rgba(255, 255, 255, .78); }
 
 /* ---------- 02 · Buttons ---------- */
@@ -287,17 +288,17 @@ button { cursor: pointer; }
     radial-gradient(90% 70% at 8% 100%, rgba(18, 19, 22, .9), transparent 62%);
 }
 .hero-body { position: relative; width: 100%; padding: 34px; }
-/* Compact status chip, the only floating element inside the photo card. */
+/* Status chip sits in the content flow above the eyebrow; it used to be absolutely positioned and
+   overlapped the "Cascavel · Paraná" label. */
+.hero-tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
 .hero-chip {
-  position: absolute; top: 20px; left: 20px;
   display: inline-flex; align-items: center; gap: 8px;
-  min-height: 30px; padding: 0 12px;
+  min-height: 28px; padding: 0 12px;
   border: 1px solid var(--hairline-strong); border-radius: var(--radius-pill);
   background: rgba(18, 19, 22, .72); color: #fff;
   font-size: 11.5px; font-weight: 600;
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
 }
-@media (max-width: 720px) { .hero-chip { top: 14px; left: 14px; } }
 .hero h1 {
   max-width: 15ch;
   margin: 0 0 14px;
@@ -485,14 +486,20 @@ button { cursor: pointer; }
 
 .property-copy { display: flex; flex-direction: column; gap: 6px; flex: 1; padding: 18px; }
 .property-copy h3 {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden;
+  min-height: 2.64em; /* two lines, so the price line starts at the same height in every card */
   margin: 0;
   font-size: 16px; font-weight: 600; line-height: 1.32; letter-spacing: -.01em;
   color: var(--white);
 }
 .property-region {
-  display: inline-flex; align-items: center; gap: 6px;
-  margin: 0; color: var(--label); font-size: 12px; font-weight: 500;
+  display: flex; align-items: center; gap: 6px;
+  min-width: 0; margin: 0;
+  color: var(--label); font-size: 12px; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.property-region::before { flex: 0 0 5px; }
 .property-region::before {
   content: ""; width: 5px; height: 5px; border-radius: 50%;
   background: var(--label); flex: 0 0 5px;
@@ -506,12 +513,14 @@ button { cursor: pointer; }
 .price-kind { color: var(--label); font-size: .62em; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
 .price-line small { flex-basis: 100%; color: var(--label); font-size: .62em; font-weight: 500; }
 .property-meta {
-  display: flex; flex-wrap: wrap; gap: 4px 0;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   margin: 14px 0 0; padding-top: 14px;
   border-top: 1px solid var(--hairline);
   color: var(--label-strong); font-size: 12px; font-weight: 500;
 }
-.property-meta span + span::before { content: "·"; margin: 0 8px; color: var(--hairline-strong); }
+/* Each fact is its own pill-free token; the separator only appears when both sides fit on a line. */
+.property-meta span + span::before { content: "·"; margin-right: 6px; color: var(--hairline-strong); }
+.property-meta span { white-space: nowrap; }
 
 .empty-state {
   display: grid; justify-items: center;

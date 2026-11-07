@@ -462,7 +462,7 @@
     // see them, so the hint that explains them is only shown in that same case.
     // Reorder controls belong to the administrator only: visitors get a plain, scrollable gallery.
     const canReorder = Boolean(state.user) && String(p.id) !== 'preview' && (p.photos?.length || 0) > 1;
-    $('#modal-content').innerHTML = `<div class="modal-gallery">${modalPhotoMarkup(p, canReorder)}</div>${canReorder ? '<p class="photo-order-hint">Administrador: arraste a alça ⠿ para reordenar. A primeira foto é a capa e a ordem é salva automaticamente.</p>':''}<div class="modal-copy"><p class="eyebrow">${esc(canonicalCategory(p.category))} · ${esc(p.region || 'Cascavel, PR')}</p><h2>${esc(p.title)}</h2>${propertyPriceMarkup(p,'modal-price')}${p.code ? `<p>Código do anúncio: ${esc(p.code)}</p>`:''}<div class="modal-facts">${facts.map(([label, value]) => `<span><small>${esc(label)}</small>${esc(value)}</span>`).join('')}</div><p>${esc(p.description || '')}</p>${features.length ? `<h3>Diferenciais</h3><ul class="modal-features">${features.map(feature => `<li>${esc(feature)}</li>`).join('')}</ul>`:''}${floorPlans.length ? `<h3>Plantas disponíveis</h3><ul class="modal-floor-plans">${floorPlans.map(floorPlanLabel).filter(Boolean).map(plan=>`<li>${esc(plan)}</li>`).join('')}</ul>`:''}${p.payment ? `<h3>Condições de pagamento</h3><p>${esc(p.payment)}</p>`:''}<div class="share-actions"><a class="button button-primary" href="${esc(contact)}" ${config.whatsapp?'target="_blank" rel="noopener"':''}>Falar sobre este imóvel ↗</a><button class="button button-secondary" id="copy-property-link">Copiar link</button><button class="button button-secondary" id="share-property">Compartilhar</button></div></div>`;
+    $('#modal-content').innerHTML = `<div class="modal-gallery">${modalPhotoMarkup(p, canReorder)}</div>${canReorder ? '<p class="photo-order-hint">Administrador: arraste a alça ⠿ para reordenar. A primeira foto é a capa e a ordem é salva automaticamente.</p>':''}<div class="modal-copy"><p class="eyebrow">${esc(canonicalCategory(p.category))} · ${esc(p.region || 'Cascavel, PR')}</p><h2>${esc(p.title)}</h2>${propertyPriceMarkup(p,'modal-price')}${p.code ? `<p>Código do anúncio: ${esc(p.code)}</p>`:''}<div class="modal-facts">${facts.map(([label, value]) => `<span><small>${esc(label)}</small>${esc(value)}</span>`).join('')}</div>${escapeParagraphs(p.description)}${features.length ? `<h3>Diferenciais</h3><ul class="modal-features">${features.map(feature => `<li>${esc(feature)}</li>`).join('')}</ul>`:''}${floorPlans.length ? `<h3>Plantas disponíveis</h3><ul class="modal-floor-plans">${floorPlans.map(floorPlanLabel).filter(Boolean).map(plan=>`<li>${esc(plan)}</li>`).join('')}</ul>`:''}${p.payment ? `<h3>Condições de pagamento</h3><p>${esc(p.payment)}</p>`:''}<div class="share-actions"><a class="button button-primary" href="${esc(contact)}" ${config.whatsapp?'target="_blank" rel="noopener"':''}>Falar sobre este imóvel ↗</a><button class="button button-secondary" id="copy-property-link">Copiar link</button><button class="button button-secondary" id="share-property">Compartilhar</button></div></div>`;
     $$('.modal-gallery img').forEach(img => img.onclick = () => showLarge(Number(img.dataset.photoIndex || 0)));
     $$('[data-gallery-step]').forEach(button => button.onclick = event => { event.stopPropagation(); stepCarousel(Number(button.dataset.galleryStep)); });
     $('.modal-gallery-dots')?.addEventListener('click', event => {
@@ -666,7 +666,26 @@
     $('#admin-list').innerHTML=state.user?(matches.length?matches.map((p,index)=>`<div class="admin-row" data-property-sort-item="${index}" data-featured="${Boolean(p.featured)}"><button class="property-drag-handle" type="button" data-property-drag="${esc(p.id)}" aria-label="Arrastar ${esc(p.title)} para reordenar" title="Arraste para organizar" ${filtered || matches.length<2 || state.orderSaving?'hidden':''}>⠿</button><div class="admin-row-main"><strong>${esc(p.title)}</strong><span>${esc(canonicalCategory(p.category)||'Imóvel')} · ${esc(statusLabel(p.status))} · ${esc(p.code||'Sem código')}</span></div><span class="admin-row-actions"><button class="text-button" data-copy-code="${esc(p.id)}">Copiar código</button><button class="text-button" data-edit="${esc(p.id)}">Editar</button><button class="text-button" data-delete="${esc(p.id)}">Excluir</button></span></div>`).join(''):'<p class="admin-list-empty">Nenhum imóvel corresponde a essa busca.</p>'):'';
     $$('[data-copy-code]').forEach(b=>b.onclick=async()=>{const p=state.properties.find(item=>String(item.id)===b.dataset.copyCode);if(!p?.code){setAdminStatus('Este imóvel ainda não tem código.',true);return;}try{await navigator.clipboard.writeText(p.code);setAdminStatus(`Código ${p.code} copiado.`);}catch{setAdminStatus('Não foi possível copiar o código neste navegador.',true);}});
     $$('[data-edit]').forEach(b=>b.onclick=()=>fillForm(state.properties.find(p=>String(p.id)===b.dataset.edit)));
-    $$('[data-delete]').forEach(b=>b.onclick=async()=>{const p=state.properties.find(x=>String(x.id)===b.dataset.delete);if(!confirm(`Excluir “${p.title}”? Esta ação não pode ser desfeita.`))return;try{await api(`${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(p.id)}`,{method:'DELETE'});await loadCatalog();}catch(e){setAdminStatus(`Falha ao excluir: ${e.message}`,true);}});
+    $$('[data-delete]').forEach(button => button.onclick = async () => {
+      const property = state.properties.find(item => String(item.id) === button.dataset.delete);
+      if (!property || !confirm(`Excluir “${property.title}”? Esta ação não pode ser desfeita.`)) return;
+      button.disabled = true;
+      const label = button.textContent;
+      button.textContent = 'Excluindo…';
+      try {
+        if (LOCAL_PREVIEW) {
+          await fetch(`/preview-api/properties?id=${encodeURIComponent(property.id)}`, { method: 'DELETE' });
+        } else {
+          await api(`${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(property.id)}`, { method: 'DELETE' });
+        }
+        await loadCatalog();
+        setAdminStatus(`“${property.title}” excluído.`);
+      } catch (error) {
+        setAdminStatus(`Falha ao excluir: ${error.message}`, true);
+        button.disabled = false;
+        button.textContent = label;
+      }
+    });
     enablePropertyDragging($('#admin-list'));
   }
   function enablePropertyDragging(container) {
@@ -803,6 +822,26 @@
     const uploadedPaths = new Set(uploads.map(({localPath}) => localPath));
     state.uploadFiles = state.uploadFiles.filter(({localPath}) => !uploadedPaths.has(localPath));
   }
+  // Fixes found in the code sweep --------------------------------------------------------------
+  // 1. The description is user typed and can contain line breaks; esc() kept them on one line.
+  const escapeParagraphs = value => String(value ?? '')
+    .split(/\n{2,}/)
+    .map(paragraph => `<p>${esc(paragraph).replace(/\n/g, '<br>')}</p>`)
+    .join('');
+
+  // New listings go to the end of their group (featured first, then manual order); an existing
+  // listing keeps its place. The previous inline expression used Math.max(...) over an empty array
+  // for the first listing, which produced -Infinity and an invalid SQL number.
+  function nextDisplayOrder(id, featured) {
+    const numbers = state.properties.map(property => Number(property.display_order)).filter(Number.isFinite);
+    const existing = id ? state.properties.find(property => String(property.id) === String(id)) : null;
+    if (existing && Boolean(existing.featured) === featured) return Number(existing.display_order) || 0;
+    if (featured) {
+      const featuredOrders = state.properties.filter(property => property.featured).map(property => Number(property.display_order)).filter(Number.isFinite);
+      return (featuredOrders.length ? Math.min(...featuredOrders) : 1) - 1;
+    }
+    return numbers.length ? Math.max(...numbers) + 1 : 0;
+  }
   async function saveProperty(event) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -824,7 +863,7 @@
         features: { items:String(formData.get('features')).split(',').map(value => value.trim()).filter(Boolean), floor_plans:readFloorPlans() },
         payment: formData.get('payment'), code: formData.get('id') ? formData.get('code') : undefined, status: formData.get('status'),
         featured: formData.get('featured') === 'on', photos: state.pendingPhotos, cover: state.coverPhoto || state.pendingPhotos[0]?.path || null,
-        display_order:(()=>{const old=state.properties.find(property=>String(property.id)===String(id));if(old){if(!old.featured&&formData.get('featured')==='on')return Math.min(0,...state.properties.filter(property=>property.featured).map(property=>Number(property.display_order)||0))-1;return Number(old.display_order)||0;}if(formData.get('featured')==='on')return Math.min(0,...state.properties.filter(property=>property.featured).map(property=>Number(property.display_order)||0))-1;return Math.max(-1,...state.properties.map(property=>Number(property.display_order)||0))+1;})()
+        display_order: nextDisplayOrder(formData.get('id'), formData.get('featured') === 'on')
       };
       const savePath = formData.get('id')
         ? `${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(id)}`
