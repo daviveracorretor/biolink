@@ -833,21 +833,43 @@
       try { handle.setPointerCapture(event.pointerId); } catch {}
     }));
   }
-  async function savePropertyOrder(from,to) {
+  async function savePropertyOrder(from, to) {
     if (state.orderSaving) return;
-    const ordered=state.properties.slice().sort(propertyOrder);
-    if (from<0 || to<0 || from>=ordered.length || to>=ordered.length || Boolean(ordered[from].featured)!==Boolean(ordered[to].featured)) { renderAdmin(); return; }
-    const [moved]=ordered.splice(from,1); ordered.splice(to,0,moved);
-    state.orderSaving=true; setAdminStatus('Salvando a nova ordem dos imóveis…'); renderAdmin();
+    const ordered = state.properties.slice().sort(propertyOrder);
+    if (from < 0 || to < 0 || from >= ordered.length || to >= ordered.length) { renderAdmin(); return; }
+    if (Boolean(ordered[from].featured) !== Boolean(ordered[to].featured)) { renderAdmin(); return; }
+    // The list is grouped: featured listings first, then the rest. Reordering must produce a fresh,
+    // continuous sequence inside each group, otherwise the values never actually change.
+    const [moved] = ordered.splice(from, 1);
+    ordered.splice(to, 0, moved);
+    const resequenced = ordered.map((property, index) => ({ property, order: index }));
+    state.orderSaving = true;
+    setAdminStatus('Salvando a nova ordem dos imóveis…');
+    renderAdmin();
     try {
-      await api('rpc/reorder_properties',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({property_ids:ordered.map(property=>property.id)})});
-      ordered.forEach((property,index)=>{property.display_order=index;});
-      renderProperties(); renderAdmin();
+      if (LOCAL_PREVIEW) {
+        for (const { property, order } of resequenced) {
+          await fetch('/preview-api/properties', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: property.id, display_order: order }) });
+        }
+      } else {
+        // One request per listing keeps the ordering consistent even without the RPC.
+        for (const { property, order } of resequenced) {
+          await api(`${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(property.id)}`, {
+            method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ display_order: order }),
+          });
+        }
+      }
+      resequenced.forEach(({ property, order }) => { property.display_order = order; });
+      renderProperties();
+      renderAdmin();
       setAdminStatus('Nova ordem dos imóveis salva.');
-    } catch(error) {
+    } catch (error) {
       await loadCatalog();
-      setAdminStatus(`Não foi possível salvar a ordem dos imóveis. ${error.message}`,true);
-    } finally { state.orderSaving=false; renderAdmin(); }
+      setAdminStatus(`Não foi possível salvar a ordem dos imóveis. ${error.message}`, true);
+    } finally {
+      state.orderSaving = false;
+      renderAdmin();
+    }
   }
   function setPropertyFormMode(editing, title = '') {
     $('#property-form-mode').hidden = !editing;
@@ -920,6 +942,14 @@
     if (!host) return;
     $('#add-price-row').addEventListener('click', () => addPriceRow({}, true));
     host.addEventListener('input', syncPriceRows);
+    // Enter inside a price field would submit the whole listing form; it should just add the next row.
+    host.addEventListener('keydown', event => {
+      if (event.key !== 'Enter') return;
+      const input = event.target.closest('input');
+      if (!input) return;
+      event.preventDefault();
+      if (input.dataset.priceText) addPriceRow({}, true);
+    });
     host.addEventListener('click', event => {
       const star = event.target.closest('[data-price-highlight]');
       if (star) {
@@ -1131,7 +1161,11 @@
     const submit = form.querySelector('button[type="submit"]');
     const submitLabel = submit.textContent;
     const formData = new FormData(form);
-    const id = formData.get('id') || crypto.randomUUID();
+    // `editingId` is read once and reused for the whole save: the form may be reset while the
+    // request is in flight, and reading form.elements.id afterwards would turn an edit into a create.
+    const editingId = String(formData.get('id') || '').trim();
+    const isEdit = Boolean(editingId);
+    const id = isEdit ? editingId : crypto.randomUUID();
     // Snapshot of the listing as it is in the catalog right now, before the edit lands.
     const previous = state.properties.find(property => String(property.id) === String(id));
     submit.disabled = true;
@@ -1152,11 +1186,13 @@
         price_secondary_label:String(formData.get('price_secondary_label')||'').trim()||null,
         price_extra_label:String(formData.get('price_extra_label')||'').trim()||null,
         features: { items:String(formData.get('features')).split(',').map(value => value.trim()).filter(Boolean), floor_plans:readFloorPlans() },
-        payment: formData.get('payment'), code: formData.get('id') ? formData.get('code') : undefined, status: formData.get('status'),
+        payment: formData.get('payment'), status: formData.get('status'),
         featured: formData.get('featured') === 'on', photos: state.pendingPhotos, cover: state.coverPhoto || state.pendingPhotos[0]?.path || null,
-        display_order: nextDisplayOrder(formData.get('id'), formData.get('featured') === 'on')
+        display_order: nextDisplayOrder(editingId, formData.get('featured') === 'on')
       };
-      const savePath = formData.get('id')
+      // The code is generated by the database on insert and must never be written back on edit.
+      if (isEdit) payload.code = formData.get('code') || null;
+      const savePath = isEdit
         ? `${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(id)}`
         : encodeURIComponent(config.supabase.table);
       if (LOCAL_PREVIEW) {
@@ -1168,7 +1204,7 @@
         setAdminStatus(`“${payload.title}” salvo na pré-visualização local.`);
         return;
       }
-      const saveOptions = formData.get('id')
+      const saveOptions = isEdit
         ? {method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(payload)}
         : {method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({id,...payload})};
       // If the database has not been migrated yet, drop the optional columns and save the rest so the
@@ -1185,10 +1221,14 @@
         const missing = optional.filter(column => reason.includes(column));
         if (!missing.length) throw error;
         missing.forEach(column => { delete payload[column]; });
-        const retryBody = formData.get('id') ? payload : { id, ...payload };
+        const retryBody = isEdit ? payload : { id, ...payload };
         savedRows = await api(savePath, { ...saveOptions, body: JSON.stringify(retryBody) });
         optionalUnavailable = missing;
       }
+      if (isEdit && Array.isArray(savedRows) && savedRows.length === 0) {
+        throw new Error('O servidor não confirmou a alteração (nenhuma linha foi atualizada). Verifique se o imóvel ainda existe e se sua sessão de administrador está válida, depois tente novamente.');
+      }
+      // Confirmed by the server: only now the form can be cleared.
       const existingIndex = state.properties.findIndex(property => String(property.id) === String(id));
       const savedProperty = savedRows?.[0] || {...(existingIndex >= 0 ? state.properties[existingIndex] : {}),...payload,id};
       if (previous) pushHistory({ ...previous }, 'Antes de editar');
@@ -1212,6 +1252,8 @@
       submit.textContent = submitLabel;
     }
   }
+  // Photos already saved keep their path; only files chosen in this session are uploaded.
+  // This is what keeps "editar e salvar" from dropping the gallery.
   function clearPendingPhotos() {
     state.pendingPhotos.forEach(photo => { if (photo.path?.startsWith('local-')) URL.revokeObjectURL(photo.url); });
     state.pendingPhotos = [];
