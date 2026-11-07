@@ -896,6 +896,20 @@ button { cursor: pointer; }
 .admin-order-hint { margin: 0; color: var(--label); font-size: 11.5px; }
 .admin-order-hint:empty { display: none; }
 
+/* Undo history: the last edits and deletions, each one restorable in a click. */
+.admin-history { display: grid; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--hairline); }
+.admin-history h4 { margin: 0; color: var(--label); font-size: 11.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+.history-list { display: grid; gap: 6px; }
+.history-row {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--hairline); border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.history-copy { display: grid; gap: 2px; min-width: 0; }
+.history-copy strong { font-size: 13px; font-weight: 600; }
+.history-copy span { color: var(--label); font-size: 11px; }
+
 .admin-list { display: grid; gap: 8px; }
 .admin-list:empty { display: none; }
 .admin-list-empty { margin: 0; padding: 18px; border: 1px dashed var(--hairline); border-radius: var(--radius-md); color: var(--label); font-size: 12.5px; text-align: center; }

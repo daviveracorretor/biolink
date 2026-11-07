@@ -19,7 +19,9 @@
   const LOCAL_PREVIEW = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && (window.__localPreview === 1 || new URLSearchParams(location.search).has('local'));
   const hasSupabase = () => Boolean(LOCAL_PREVIEW || (config.supabase?.url && config.supabase?.anonKey));
   const wa = (message = 'Olá, Davi! Gostaria de conversar sobre imóveis em Cascavel.') => config.whatsapp ? `https://wa.me/${encodeURIComponent(config.whatsapp)}?text=${encodeURIComponent(message)}` : '#admin';
-  const money = n => n ? `A partir de ${Number(n).toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:2 })}` : 'Consulte condições';
+  // Money is formatted without a prefix; callers that need "A partir de" add it themselves.
+  const brl = n => Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 });
+  const money = n => n ? `A partir de ${brl(n)}` : 'Consulte condições';
   const propertyOrder = (a,b) => Number(Boolean(b.featured))-Number(Boolean(a.featured)) || Number(a.display_order ?? Number.MAX_SAFE_INTEGER)-Number(b.display_order ?? Number.MAX_SAFE_INTEGER) || String(b.created_at||'').localeCompare(String(a.created_at||''));
   // Price presentation
   // price_display : total | entry | both  (which values the listing shows at all)
@@ -35,12 +37,12 @@
   // no words, the value is re-formatted as currency from the numeric column instead.
   function prettyPriceText(text, fallback) {
     const raw = String(text || '').trim();
-    if (!raw) return fallback ? money(fallback) : '';
+    if (!raw) return fallback ? brl(fallback) : '';
     const hasWords = /[a-zA-ZÀ-ÿ]/.test(raw);
     const looksRaw = /^\d[\d.,]*$/.test(raw);
     if (!hasWords && looksRaw) {
       const numeric = numericPriceOf([{ text: raw, highlight: true }]);
-      if (numeric) return money(numeric);
+      if (numeric) return brl(numeric);
     }
     return raw;
   }
@@ -72,22 +74,19 @@
     const custom = [property.price_highlight_label, property.price_secondary_label, property.price_extra_label]
       .map(value => String(value || '').trim()).filter(Boolean);
     const mode = ['entry', 'both'].includes(property.price_display) ? property.price_display : 'total';
-    const items = [];
-    if (total && mode !== 'entry') items.push({ label: 'Valor total', text: money(total), highlight: false });
-    if (entryAmount || installments) {
-      items.push({
-        label: entryName,
-        text: entryAmount ? money(entryAmount) : `em até ${installments}x`,
-        highlight: false,
-      });
-      if (entryAmount && installments) items.push({ label: `Restante do ${entryName.toLowerCase()}`, text: `em até ${installments}x`, highlight: false });
-    }
-    if (!items.length && custom.length) return custom.map((text, index) => ({ label: '', text, highlight: index === 0 }));
+    // Order follows the highlight choice: the leading value is always the first line.
     const highlightChoice = ['total', 'entry'].includes(property.price_highlight) ? property.price_highlight : 'auto';
-    const highlightedIndex = highlightChoice === 'total'
-      ? 0
-      : highlightChoice === 'entry' ? Math.min(1, items.length - 1) : (items.length > 1 ? 1 : 0);
-    return items.map((item, index) => ({ ...item, highlight: index === highlightedIndex }));
+    const leadWithEntry = mode !== 'total' && (highlightChoice === 'entry' || (highlightChoice === 'auto' && Boolean(entryAmount || installments)));
+    const totalLine = total ? { label: 'Valor total', text: brl(total), highlight: false } : null;
+    const entryLine = (entryAmount || installments)
+      ? { label: entryName, text: entryAmount ? brl(entryAmount) : `em até ${installments}x`, highlight: false }
+      : null;
+    const items = leadWithEntry ? [entryLine, totalLine] : [totalLine, entryLine];
+    const clean = items.filter(Boolean);
+    if (!clean.length && custom.length) return custom.map((text, index) => ({ label: '', text, highlight: index === 0 }));
+    // With a value and its parcelas, the installments get their own line only when there is no
+    // separate amount to show; otherwise the text already reads well on one line.
+    return clean.map((item, index) => ({ ...item, highlight: index === 0 }));
   }
   // The numeric value kept for ordering/search: the number inside the highlighted line.
   function numericPriceOf(items) {
@@ -102,9 +101,11 @@
       return Number.isFinite(value) && value > 0 ? value : null;
     };
     const main = items.find(item => item.highlight) || items[0];
-    const direct = read(main?.text);
+    // A line like "em até 40x" is a number of installments, never a price: skip it.
+    const isInstallmentText = text => /\b\d+\s*x\b|\bem\s+até\b|\bvezes\b/i.test(String(text || '')) && !/r\$/i.test(String(text || ''));
+    const direct = isInstallmentText(main?.text) ? null : read(main?.text);
     if (direct) return direct;
-    const all = items.map(item => read(item.text)).filter(Boolean);
+    const all = items.filter(item => !isInstallmentText(item.text)).map(item => read(item.text)).filter(Boolean);
     return all.length ? Math.max(...all) : null;
   }
   function propertyPriceMarkup(property, className) {
@@ -698,6 +699,8 @@
   }
   function mediaUrl(path) { return `${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/public/${config.supabase.bucket}/${path}`; }
   async function loadCatalog() {
+    // Never wipe a form the administrator is filling in: the catalog refresh only updates the lists.
+
     if (LOCAL_PREVIEW) {
       try {
         const response = await fetch('/preview-api/properties', { cache: 'no-store' });
@@ -752,6 +755,7 @@
     $('#admin-login').disabled = !hasSupabase();
     $('#admin-logout').hidden = !state.user;
     $('#property-form').hidden = !state.user;
+    renderHistory();
     const tools = $('#admin-property-tools');
     tools.hidden = !state.user;
     const categoryFilter = $('#admin-category-filter');
@@ -771,6 +775,7 @@
       button.disabled = true;
       const label = button.textContent;
       button.textContent = 'Excluindo…';
+      pushHistory({ ...property }, 'Antes de excluir');
       try {
         if (LOCAL_PREVIEW) {
           await fetch(`/preview-api/properties?id=${encodeURIComponent(property.id)}`, { method: 'DELETE' });
@@ -1057,6 +1062,57 @@
     }
     return numbers.length ? Math.max(...numbers) + 1 : 0;
   }
+  // ---------------------------------------------------------------- undo
+  // Every save keeps the previous version of the listing so a mistaken edit can be reverted from the
+  // panel. Stored in localStorage: small, per browser, and never sent to the server.
+  const HISTORY_KEY = 'dv-property-history';
+  const HISTORY_LIMIT = 20;
+  function readHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
+  }
+  function pushHistory(snapshot, action) {
+    if (!snapshot?.id) return;
+    const history = readHistory();
+    history.unshift({ at: new Date().toISOString(), action, property: snapshot });
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, HISTORY_LIMIT)));
+    renderHistory();
+  }
+  function renderHistory() {
+    const host = $('#admin-history');
+    if (!host) return;
+    const history = readHistory();
+    host.hidden = !state.user;
+    if (!history.length) {
+      host.innerHTML = '<p class="field-hint">Nenhuma alteração recente para desfazer.</p>';
+      return;
+    }
+    host.innerHTML = `<h4>Últimas alterações</h4><div class="history-list">${history.map((entry, index) => `
+      <div class="history-row">
+        <div class="history-copy"><strong>${esc(entry.property?.title || 'Imóvel')}</strong><span>${esc(entry.action)} · ${new Date(entry.at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span></div>
+        <button type="button" class="text-button" data-history-restore="${index}">Restaurar</button>
+      </div>`).join('')}</div>`;
+    $$('[data-history-restore]', host).forEach(button => button.onclick = () => restoreHistory(Number(button.dataset.historyRestore)));
+  }
+  async function restoreHistory(index) {
+    const entry = readHistory()[index];
+    if (!entry?.property) return;
+    if (!confirm(`Restaurar “${entry.property.title}” para a versão de ${new Date(entry.at).toLocaleString('pt-BR')}?`)) return;
+    const property = entry.property;
+    setAdminStatus('Restaurando versão anterior…');
+    try {
+      if (LOCAL_PREVIEW) {
+        await fetch('/preview-api/properties', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(property) });
+      } else {
+        const { id, created_at, ...payload } = property;
+        await api(`${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(payload) });
+      }
+      await loadCatalog();
+      setAdminStatus(`“${property.title}” restaurado.`);
+    } catch (error) {
+      setAdminStatus(`Não foi possível restaurar: ${error.message}`, true);
+    }
+  }
+
   async function saveProperty(event) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -1064,6 +1120,8 @@
     const submitLabel = submit.textContent;
     const formData = new FormData(form);
     const id = formData.get('id') || crypto.randomUUID();
+    // Snapshot of the listing as it is in the catalog right now, before the edit lands.
+    const previous = state.properties.find(property => String(property.id) === String(id));
     submit.disabled = true;
     submit.textContent = state.uploadFiles.length ? `Enviando fotos 0/${state.uploadFiles.length}…` : 'Salvando…';
     try {
@@ -1092,6 +1150,7 @@
       if (LOCAL_PREVIEW) {
         const response = await fetch('/preview-api/properties', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...payload }) });
         state.properties = await response.json();
+        if (previous) pushHistory({ ...previous }, 'Antes de editar');
         form.reset(); clearPendingPhotos(); setPropertyFormMode(false); renderPhotoPreview();
         renderCategories(); renderProperties(); renderAdmin();
         setAdminStatus(`“${payload.title}” salvo na pré-visualização local.`);
@@ -1120,6 +1179,7 @@
       }
       const existingIndex = state.properties.findIndex(property => String(property.id) === String(id));
       const savedProperty = savedRows?.[0] || {...(existingIndex >= 0 ? state.properties[existingIndex] : {}),...payload,id};
+      if (previous) pushHistory({ ...previous }, 'Antes de editar');
       if (existingIndex >= 0) state.properties[existingIndex] = savedProperty;
       else state.properties.unshift(savedProperty);
       form.reset(); clearPendingPhotos(); setPropertyFormMode(false); renderPhotoPreview();
@@ -1304,6 +1364,20 @@
       status.classList.add('is-error');
     }
   }
+  // Warns before the tab is closed with unsaved edits in the listing form.
+  function initUnsavedGuard() {
+    const form = $('#property-form');
+    if (!form) return;
+    let dirty = false;
+    form.addEventListener('input', () => { dirty = true; });
+    form.addEventListener('submit', () => { dirty = false; });
+    form.addEventListener('reset', () => { dirty = false; });
+    window.addEventListener('beforeunload', event => {
+      if (!dirty || form.hidden) return;
+      event.preventDefault();
+      event.returnValue = '';
+    });
+  }
   function init() {
     // The page is a static shell that keeps working without config.js; every lookup below is
     // guarded so a missing element (or a stale cached HTML) cannot abort the whole script.
@@ -1329,6 +1403,7 @@
     });
     warnMissingConfig();
     setupAdmin();
+    initUnsavedGuard();
     initChrome();
     initActiveNav();
     loadCatalog().then(()=>{
