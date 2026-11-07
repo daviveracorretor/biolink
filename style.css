@@ -522,9 +522,6 @@ button { cursor: pointer; }
 /* Free text typed by the administrator (e.g. "Restante da entrada em 40x"). */
 .price-line.price-extra { color: var(--label-strong); font-size: .86em; }
 .price-line.price-extra .price-value { font-weight: 500; }
-.custom-labels { display: grid; gap: 10px; margin-top: 4px; }
-.custom-labels[hidden] { display: none; }
-.custom-labels input { width: 100%; }
 .property-meta {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   margin: 14px 0 0; padding-top: 14px;
@@ -782,41 +779,51 @@ button { cursor: pointer; }
 .price-options > label { max-width: 360px; }
 .price-options legend { padding: 0 6px; color: var(--white); font-size: 13px; font-weight: 600; }
 .price-options legend span { color: var(--label); font-weight: 400; }
-.price-entry-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: end; }
-.price-entry-fields[hidden], .price-highlight[hidden], .entry-installments-field[hidden] { display: none; }
-.price-highlight {
-  display: grid; gap: 10px;
-  margin: 0; padding: 14px;
+
+/* Price builder: one row per price line, with drag handle, label, free text, star and remove. */
+.price-builder { gap: 14px; }
+.price-builder .field-hint { margin: 0; }
+.price-rows { display: grid; gap: 8px; }
+.price-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, .8fr) minmax(0, 1.4fr) 34px 34px;
+  gap: 8px; align-items: end;
+  padding: 10px;
   border: 1px solid var(--hairline); border-radius: var(--radius-md);
   background: var(--surface-1);
+  transition: border-color .2s ease, background-color .2s ease;
 }
-.price-highlight legend { padding: 0 6px; color: var(--white); font-size: 12.5px; font-weight: 600; }
-.highlight-choices { display: flex; flex-wrap: wrap; gap: 8px; }
-.highlight-choice {
-  display: inline-flex !important; align-items: center; gap: 8px;
-  flex: 0 0 auto; min-height: 40px; padding: 0 14px;
-  border: 1px solid var(--hairline); border-radius: var(--radius-pill);
-  background: var(--surface-3); color: var(--label-strong);
-  font-size: 12.5px; font-weight: 600; white-space: nowrap; cursor: pointer;
-  transition: border-color .2s ease, background-color .2s ease, color .2s ease;
+.price-row.is-highlighted { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface-1)); }
+.price-row label { min-width: 0; }
+.price-row input { width: 100%; min-width: 0; }
+.price-row-handle {
+  display: grid; place-items: center;
+  width: 30px; height: 38px; padding: 0;
+  border: 1px solid var(--hairline); border-radius: 8px;
+  background: var(--surface-3); color: var(--label);
+  cursor: grab; touch-action: none;
 }
-.highlight-choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); color: var(--white); }
-.highlight-choice:has(input:disabled) { opacity: .45; cursor: not-allowed; }
-.highlight-choice input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
-.input-suffix { display: flex; align-items: center; gap: 8px; }
-.input-suffix > span { color: var(--label); font-size: 12px; }
-.floor-plans-field strong { font-size: 13px; font-weight: 600; }
-.floor-plans-field strong span { color: var(--label); font-weight: 400; }
-.floor-plans-field .field-hint { margin-top: 3px; }
-.floor-plans-field .button { justify-self: start; min-height: 38px; font-size: 12.5px; }
-.floor-plans-editor { display: grid; gap: 10px; }
-.floor-plan-row {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 10px; align-items: end;
-  padding: 12px;
-  border: 1px solid var(--hairline); border-radius: var(--radius-md);
-  background: var(--surface-1);
+.price-row-handle:active { cursor: grabbing; }
+.price-row-handle svg { width: 16px; height: 16px; fill: currentColor; }
+.price-row-star, .price-row-remove {
+  display: grid; place-items: center;
+  width: 34px; height: 38px; padding: 0;
+  border: 1px solid var(--hairline); border-radius: 8px;
+  background: var(--surface-3); color: var(--label);
+  transition: color .2s ease, border-color .2s ease, background-color .2s ease;
 }
-.floor-plan-row .remove-floor-plan { margin-bottom: 2px; }
+.price-row-star svg, .price-row-remove svg {
+  width: 16px; height: 16px; fill: none;
+  stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round;
+}
+.price-row-star:hover { color: var(--gold); border-color: var(--gold); }
+.price-row-star.is-active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.price-row-star.is-active svg { fill: currentColor; }
+.price-row-remove:hover { color: #ff9d8c; border-color: #ff9d8c; }
+.price-row-dragging { opacity: .95; border-color: var(--accent); background: var(--surface-2); }
+.price-row-placeholder { border: 1px dashed var(--accent); border-radius: var(--radius-md); background: var(--accent-soft); }
+.price-builder-total { color: var(--label); font-size: 11.5px; }
+.price-builder-total strong { color: var(--white); }
 
 .photo-upload-field {
   display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
@@ -1261,8 +1268,17 @@ dialog[open] { animation: dialog-in .28s var(--ease-out); }
   .admin-content { padding: 4px 16px 18px; }
   .admin-section details > summary { padding: 16px; }
   .form-row > label { flex-basis: 100%; }
-  .price-entry-fields { grid-template-columns: 1fr; }
-  .floor-plan-row { grid-template-columns: 1fr 1fr; }
+  .price-row {
+    grid-template-columns: 30px minmax(0, 1fr) 34px 34px;
+    grid-template-areas: "handle label star remove" "handle text text text";
+    align-items: center;
+  }
+  .price-row-handle { grid-area: handle; align-self: stretch; height: auto; }
+  .price-row-label { grid-area: label; }
+  .price-row-text { grid-area: text; }
+  .price-row-star { grid-area: star; }
+  .price-row-remove { grid-area: remove; }
+    .floor-plan-row { grid-template-columns: 1fr 1fr; }
   .admin-property-tools { grid-template-columns: 1fr; }
   .admin-property-tools input { grid-column: auto; }
   .admin-row-actions { justify-content: flex-start; width: 100%; padding-top: 6px; border-top: 1px solid var(--hairline); }

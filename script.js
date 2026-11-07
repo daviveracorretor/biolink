@@ -25,51 +25,81 @@
   // price_display : total | entry | both  (which values the listing shows at all)
   // price_highlight: total | entry | auto  (which of them is the big, emphasised number)
   // entry_mode     : amount | installments (the entry is shown as R$ value or only as "Nx")
-  function priceValues(property) {
+  // ---------------------------------------------------------------- listing prices
+  // price_items is a list of free price lines:
+  //   [{ label: 'Sinal', text: 'de R$ 20 mil', highlight: true },
+  //    { label: 'Restante da entrada', text: 'em 40x', highlight: false },
+  //    { label: 'Valor total', text: 'R$ 299 mil', highlight: false }]
+  // Listings created before this model still render from price / entry_* fields.
+  function priceItemsOf(property) {
+    const raw = property?.price_items;
+    const list = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : [];
+    const items = list
+      .map(item => ({
+        label: String(item?.label ?? '').trim(),
+        text: String(item?.text ?? '').trim(),
+        highlight: Boolean(item?.highlight),
+      }))
+      .filter(item => item.label || item.text);
+    if (!items.length) return legacyPriceItems(property);
+    // Exactly one leading item: the flagged one, else the first.
+    const firstHighlighted = items.findIndex(item => item.highlight);
+    return items.map((item, index) => ({ ...item, highlight: index === (firstHighlighted >= 0 ? firstHighlighted : 0) }));
+  }
+  function legacyPriceItems(property) {
+    if (!property) return [];
     const total = Number(property.price) > 0 ? Number(property.price) : null;
     const entryAmount = Number(property.entry_price) > 0 ? Number(property.entry_price) : null;
     const installments = Number(property.entry_installments) > 0 ? Math.round(Number(property.entry_installments)) : null;
     const entryName = property.entry_label === 'Sinal' ? 'Sinal' : 'Entrada';
-    const entryInstallmentsOnly = property.entry_mode === 'installments' && installments;
-    return { total, entryAmount, installments, entryName, entryInstallmentsOnly };
+    const custom = [property.price_highlight_label, property.price_secondary_label, property.price_extra_label]
+      .map(value => String(value || '').trim()).filter(Boolean);
+    const mode = ['entry', 'both'].includes(property.price_display) ? property.price_display : 'total';
+    const items = [];
+    if (total && mode !== 'entry') items.push({ label: 'Valor total', text: money(total), highlight: false });
+    if (entryAmount || installments) {
+      items.push({
+        label: entryName,
+        text: entryAmount ? money(entryAmount) : `em até ${installments}x`,
+        highlight: false,
+      });
+      if (entryAmount && installments) items.push({ label: `Restante do ${entryName.toLowerCase()}`, text: `em até ${installments}x`, highlight: false });
+    }
+    if (!items.length && custom.length) return custom.map((text, index) => ({ label: '', text, highlight: index === 0 }));
+    const highlightChoice = ['total', 'entry'].includes(property.price_highlight) ? property.price_highlight : 'auto';
+    const highlightedIndex = highlightChoice === 'total'
+      ? 0
+      : highlightChoice === 'entry' ? Math.min(1, items.length - 1) : (items.length > 1 ? 1 : 0);
+    return items.map((item, index) => ({ ...item, highlight: index === highlightedIndex }));
+  }
+  // The numeric value kept for ordering/search: the number inside the highlighted line.
+  function numericPriceOf(items) {
+    const read = text => {
+      const digits = String(text || '').replace(/[^\d.,]/g, '');
+      if (!digits) return null;
+      // "299.000,00" / "299 mil" / "20,000.00"
+      const normalized = /,\d{2}$/.test(digits)
+        ? digits.replace(/\./g, '').replace(',', '.')
+        : digits.replace(/,/g, '');
+      const value = Number(normalized);
+      return Number.isFinite(value) && value > 0 ? value : null;
+    };
+    const main = items.find(item => item.highlight) || items[0];
+    const direct = read(main?.text);
+    if (direct) return direct;
+    const all = items.map(item => read(item.text)).filter(Boolean);
+    return all.length ? Math.max(...all) : null;
   }
   function propertyPriceMarkup(property, className) {
-    const mode = ['entry', 'both'].includes(property.price_display) ? property.price_display : 'total';
-    const { total, entryAmount, installments, entryName } = priceValues(property);
-    const hasEntry = Boolean(entryAmount || (property.entry_mode === 'installments' && installments));
-    const customMain = String(property.price_highlight_label || '').trim();
-    const customSecondary = String(property.price_secondary_label || '').trim();
-    const customExtra = String(property.price_extra_label || '').trim();
-
-    if (!total && !hasEntry && !customMain) {
+    const items = priceItemsOf(property);
+    if (!items.length) {
       return `<div class="${className} price-lines"><span class="price-line price-main"><span class="price-value">Consulte condições</span></span></div>`;
     }
-
-    const highlight = ['total', 'entry'].includes(property.price_highlight)
-      ? property.price_highlight
-      : (hasEntry && mode !== 'total' ? 'entry' : 'total');
-
-    // Automatic text, used only where the administrator left the custom field empty.
-    const autoMain = highlight === 'total'
-      ? (total ? money(total) : 'Consulte condições')
-      : (entryAmount ? money(entryAmount) : installments ? `em até ${installments}x` : 'Consulte condições');
-    const autoSecondary = highlight === 'total'
-      ? (entryAmount ? money(entryAmount) : installments ? `em até ${installments}x` : '')
-      : (total ? money(total) : '');
-    const mainKind = highlight === 'total' ? 'Valor total' : entryName;
-    const secondaryKind = highlight === 'total' ? entryName : 'Valor total';
-
-    const mainText = customMain || autoMain;
-    const secondaryText = customSecondary || autoSecondary;
-    const mainBlock = `<span class="price-line price-main"><span class="price-kind">${esc(mainKind)}</span><span class="price-value">${esc(mainText)}</span></span>`;
-    const secondaryBlock = secondaryText
-      ? `<span class="price-line price-secondary"><span class="price-kind">${esc(secondaryKind)}</span><span class="price-value">${esc(secondaryText)}</span></span>`
-      : '';
-    const extraBlock = customExtra ? `<span class="price-line price-extra"><span class="price-value">${esc(customExtra)}</span></span>` : '';
-
-    if (mode === 'entry') return `<div class="${className} price-lines">${mainBlock}${extraBlock}</div>`;
-    if (mode === 'both') return `<div class="${className} price-lines">${mainBlock}${secondaryBlock}${extraBlock}</div>`;
-    return `<div class="${className} price-lines">${mainBlock}${extraBlock}</div>`;
+    const lines = items.map(item => {
+      const kind = item.label ? `<span class="price-kind">${esc(item.label)}</span>` : '';
+      return `<span class="price-line price-${item.highlight ? 'main' : 'secondary'}">${kind}<span class="price-value">${esc(item.text)}</span></span>`;
+    }).join('');
+    return `<div class="${className} price-lines">${lines}</div>`;
   }
 
   const categoryKey = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
@@ -790,40 +820,131 @@
     $('#clear-property-form').hidden = editing;
     $('#cancel-property-edit').hidden = !editing;
   }
-  function syncPriceFields() {
+  // ---------------------------------------------------------------- price builder (admin)
+  const PRICE_ROW_TEMPLATE = (row = {}) => `
+    <div class="price-row" data-price-row>
+      <button type="button" class="price-row-handle" data-price-drag aria-label="Arrastar para reordenar" title="Arraste para reordenar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg></button>
+      <label class="price-row-label">Etiqueta<input data-price-label maxlength="24" placeholder="Sinal" value="${esc(row.label || '')}"></label>
+      <label class="price-row-text">Texto do valor<input data-price-text maxlength="70" placeholder="de R$ 20 mil" value="${esc(row.text || '')}"></label>
+      <button type="button" class="price-row-star${row.highlight ? ' is-active' : ''}" data-price-highlight aria-pressed="${row.highlight ? 'true' : 'false'}" title="Destacar este valor" aria-label="Destacar este valor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.6 5.6 6.1.8-4.5 4.3 1.1 6-5.3-3-5.3 3 1.1-6L3.3 9.4l6.1-.8Z"/></svg></button>
+      <button type="button" class="price-row-remove" data-price-remove aria-label="Remover valor" title="Remover"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    </div>`;
+  function addPriceRow(row = {}, focus = false) {
+    const host = $('#price-rows');
+    if (!host) return;
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = PRICE_ROW_TEMPLATE(row).trim();
+    const element = wrapper.firstElementChild;
+    host.append(element);
+    if (!host.querySelector('[data-price-highlight].is-active')) element.querySelector('[data-price-highlight]').classList.add('is-active');
+    if (focus) element.querySelector('[data-price-label]').focus();
+    syncPriceRows();
+  }
+  function readPriceRows() {
+    return $$('[data-price-row]', $('#price-rows')).map(row => ({
+      label: row.querySelector('[data-price-label]').value.trim(),
+      text: row.querySelector('[data-price-text]').value.trim(),
+      highlight: row.querySelector('[data-price-highlight]').classList.contains('is-active'),
+    })).filter(item => item.label || item.text);
+  }
+  function syncPriceRows() {
+    const rows = $$('[data-price-row]', $('#price-rows'));
+    const highlighted = rows.filter(row => row.querySelector('[data-price-highlight]').classList.contains('is-active'));
+    // Only the first flagged row keeps the star, and the remove button is hidden on the last row.
+    highlighted.slice(1).forEach(row => row.querySelector('[data-price-highlight]').classList.remove('is-active'));
+    rows.forEach(row => {
+      const star = row.querySelector('[data-price-highlight]');
+      const active = star.classList.contains('is-active');
+      star.setAttribute('aria-pressed', active ? 'true' : 'false');
+      star.title = active ? 'Valor em destaque' : 'Destacar este valor';
+      row.classList.toggle('is-highlighted', active);
+      row.querySelector('[data-price-remove]').hidden = rows.length === 1;
+    });
+    const items = readPriceRows();
+    const numeric = numericPriceOf(items);
+    const preview = $('#price-numeric-preview');
+    if (preview) preview.textContent = numeric ? money(numeric) : '—';
+    // Keep the legacy columns in sync so old consumers and the ordering stay correct.
+    const main = items.find(item => item.highlight) || items[0] || null;
+    const secondary = items.find(item => item !== main) || null;
     const form = $('#property-form');
-    if (!form) return;
-    const mode = form.elements.price_display.value;
-    const entryMode = form.elements.entry_mode.value;
-    const entryVisible = mode === 'entry' || mode === 'both';
-    const totalRequired = mode === 'total' || mode === 'both';
-    const amountField = form.elements.entry_price;
-    const installmentsField = form.elements.entry_installments;
-    const installmentsOnly = entryMode === 'installments';
-
-    $('#price-entry-fields').hidden = !entryVisible;
-    form.elements.price.required = totalRequired;
-    // "Somente o número de parcelas" hides the R$ field and makes the parcelas the required value.
-    amountField.closest('label').hidden = installmentsOnly;
-    amountField.required = entryVisible && !installmentsOnly;
-    $('#entry-installments-field').hidden = !entryVisible;
-    installmentsField.required = entryVisible && installmentsOnly;
-    const suffix = installmentsField.closest('label').querySelector('.input-suffix > span');
-    if (suffix) suffix.textContent = installmentsOnly ? 'x' : 'vezes';
-
-    // The highlight only makes sense when both values exist.
-    const highlightFieldset = $('#price-highlight-fieldset');
-    highlightFieldset.hidden = mode !== 'both';
-    $('#custom-labels').hidden = mode === 'entry' ? false : mode !== 'both';
-    const chosen = form.querySelector('[name="price_highlight"]:checked');
-    const allowed = installmentsOnly && !Number(amountField.value) ? ['entry', 'auto'] : ['total', 'entry', 'auto'];
-    form.querySelectorAll('[name="price_highlight"]').forEach(radio => { radio.disabled = !allowed.includes(radio.value); });
-    if (!chosen || chosen.disabled) {
-      const fallback = form.querySelector(`[name="price_highlight"][value="${installmentsOnly ? 'entry' : 'auto'}"]:not(:disabled)`) || form.querySelector('[name="price_highlight"]:not(:disabled)');
-      if (fallback) fallback.checked = true;
+    if (form) {
+      form.elements.price.value = numeric ?? '';
+      form.elements.price_highlight_label.value = main ? `${main.label ? main.label + ' ' : ''}${main.text}`.trim() : '';
+      form.elements.price_secondary_label.value = secondary ? `${secondary.label ? secondary.label + ' ' : ''}${secondary.text}`.trim() : '';
+      form.elements.price_extra_label.value = '';
+      form.elements.price_display.value = items.length > 1 ? 'both' : 'total';
+      form.elements.price_highlight.value = main && main.label && /sinal|entrada/i.test(main.label) ? 'entry' : 'total';
+      form.elements.entry_price.value = '';
+      form.elements.entry_installments.value = '';
     }
   }
-  function fillForm(p) { const f=$('#property-form'); f.reset(); f.elements.id.value=p.id; ['title','description','category','region','price','area','bedrooms','suites','bathrooms','parking','payment','status','price_display','entry_price','entry_label','entry_installments','entry_mode','price_highlight','price_highlight_label','price_secondary_label','price_extra_label'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); f.elements.price_display.value=p.price_display||'total'; f.elements.entry_label.value=p.entry_label||'Entrada'; f.elements.entry_mode.value=p.entry_mode==='installments'?'installments':'amount'; ['price_highlight_label','price_secondary_label','price_extra_label'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); const highlightChoice=f.querySelector(`[name="price_highlight"][value="${['total','entry'].includes(p.price_highlight)?p.price_highlight:'auto'}"]`); if(highlightChoice) highlightChoice.checked=true; f.elements.code.value=p.code??''; f.elements.category.value=canonicalCategory(p.category); f.elements.features.value=propertyFeatures(p).join(', '); propertyFloorPlans(p).forEach(plan=>addFloorPlanRow(plan));f.elements.featured.checked=!!p.featured;state.pendingPhotos=orderedPropertyPhotos(p);state.coverPhoto=state.pendingPhotos[0]?.path||null;syncPriceFields();setPropertyFormMode(true,p.title);updatePropertyCodeHint();renderPhotoPreview();f.scrollIntoView({behavior:'smooth',block:'start'}); }
+  function initPriceRows() {
+    const host = $('#price-rows');
+    if (!host) return;
+    $('#add-price-row').addEventListener('click', () => addPriceRow({}, true));
+    host.addEventListener('input', syncPriceRows);
+    host.addEventListener('click', event => {
+      const star = event.target.closest('[data-price-highlight]');
+      if (star) {
+        const row = star.closest('[data-price-row]');
+        const wasActive = star.classList.contains('is-active');
+        $$('[data-price-highlight]', host).forEach(other => other.classList.remove('is-active'));
+        if (!wasActive) star.classList.add('is-active');
+        row.classList.toggle('is-highlighted', !wasActive);
+        syncPriceRows();
+        return;
+      }
+      const remove = event.target.closest('[data-price-remove]');
+      if (remove) {
+        remove.closest('[data-price-row]').remove();
+        syncPriceRows();
+      }
+    });
+    // Drag to reorder, same gesture as the photo list.
+    host.addEventListener('pointerdown', event => {
+      const handle = event.target.closest('[data-price-drag]');
+      if (!handle || event.pointerType === 'mouse' && event.button !== 0) return;
+      event.preventDefault();
+      const row = handle.closest('[data-price-row]');
+      if (!row) return;
+      const rect = row.getBoundingClientRect();
+      const placeholder = document.createElement('div');
+      placeholder.className = 'price-row-placeholder';
+      placeholder.style.height = `${rect.height}px`;
+      row.before(placeholder);
+      row.classList.add('price-row-dragging');
+      Object.assign(row.style, { position: 'fixed', left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, zIndex: '1000', pointerEvents: 'none', margin: '0' });
+      const offsetY = event.clientY - rect.top;
+      const move = moveEvent => {
+        row.style.top = `${moveEvent.clientY - offsetY}px`;
+        const target = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY)?.closest('[data-price-row]');
+        if (!target || target === row || target.parentElement !== host) return;
+        const targetRect = target.getBoundingClientRect();
+        host.insertBefore(placeholder, moveEvent.clientY > targetRect.top + targetRect.height / 2 ? target.nextSibling : target);
+      };
+      const finish = () => {
+        handle.removeEventListener('pointermove', move);
+        handle.removeEventListener('pointerup', finish);
+        handle.removeEventListener('pointercancel', finish);
+        placeholder.replaceWith(row);
+        row.classList.remove('price-row-dragging');
+        ['position', 'left', 'top', 'width', 'zIndex', 'pointerEvents', 'margin'].forEach(key => { row.style[key] = ''; });
+        syncPriceRows();
+      };
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', finish);
+      handle.addEventListener('pointercancel', finish);
+      try { handle.setPointerCapture(event.pointerId); } catch {}
+    });
+  }
+
+  // Legacy helper kept as a no-op: the price fields it used to toggle are now handled by the price
+  // builder (initPriceRows / syncPriceRows). Kept so old call sites do not break.
+  function syncPriceFields() {
+    syncPriceRows();
+  }
+  function fillForm(p) { const f=$('#property-form'); f.reset(); f.elements.id.value=p.id; ['title','description','category','region','price','area','bedrooms','suites','bathrooms','parking','payment','status','price_display','entry_price','entry_label','entry_installments','entry_mode','price_highlight','price_highlight_label','price_secondary_label','price_extra_label'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); fillPriceRows(p); const highlightChoice=f.querySelector(`[name="price_highlight"][value="${['total','entry'].includes(p.price_highlight)?p.price_highlight:'auto'}"]`); if(highlightChoice) highlightChoice.checked=true; f.elements.code.value=p.code??''; f.elements.category.value=canonicalCategory(p.category); f.elements.features.value=propertyFeatures(p).join(', '); propertyFloorPlans(p).forEach(plan=>addFloorPlanRow(plan));f.elements.featured.checked=!!p.featured;state.pendingPhotos=orderedPropertyPhotos(p);state.coverPhoto=state.pendingPhotos[0]?.path||null;syncPriceFields();setPropertyFormMode(true,p.title);updatePropertyCodeHint();renderPhotoPreview();f.scrollIntoView({behavior:'smooth',block:'start'}); }
   function movePendingPhoto(from, to) {
     if (to < 0 || to >= state.pendingPhotos.length || from < 0 || from >= state.pendingPhotos.length) return;
     const [photo] = state.pendingPhotos.splice(from, 1);
@@ -920,10 +1041,10 @@
       submit.textContent = 'Salvando anúncio…';
       // Only columns that exist in the table are sent. PostgREST rejects the whole request when one
     // column is missing (PGRST204 / 42703), and that was silently discarding every edit.
-    const optional = ['entry_mode', 'price_highlight', 'price_highlight_label', 'price_secondary_label', 'price_extra_label'];
+    const optional = ['price_items', 'entry_mode', 'price_highlight', 'price_highlight_label', 'price_secondary_label', 'price_extra_label'];
     const payload = {
         title: formData.get('title'), description: formData.get('description'), category: formData.get('category'), region: formData.get('region'),
-        price: Number(formData.get('price')) || null, area: Number(formData.get('area')) || null,
+        price: Number(formData.get('price')) || null, price_items: readPriceRows(), area: Number(formData.get('area')) || null,
         bedrooms: Number(formData.get('bedrooms')) || null, suites: Number(formData.get('suites')) || null,
         bathrooms: Number(formData.get('bathrooms')) || null, parking: Number(formData.get('parking')) || null,
         price_display:formData.get('price_display')||'total', entry_price:Number(formData.get('entry_price'))||null, entry_label:formData.get('entry_label')||'Entrada', entry_installments:Number(formData.get('entry_installments'))||null, entry_mode:formData.get('entry_mode')||'amount', price_highlight:formData.get('price_highlight')||'auto',
@@ -1050,12 +1171,11 @@
       try{await fetchWithTimeout(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`}},10000);}catch{}
       state.user=null;$('#property-form').reset();clearPendingPhotos();setPropertyFormMode(false);$('#property-form').hidden=true;await loadCatalog();
     };
+    initPriceRows();
+    addPriceRow({ label: 'Valor total', text: '', highlight: true });
     $('#property-form').addEventListener('submit',saveProperty);
     $('#property-form').elements.category.addEventListener('change',updatePropertyCodeHint);
-    $('#property-form').elements.price_display.addEventListener('change',syncPriceFields);
-    $('#property-form').elements.entry_mode.addEventListener('change',syncPriceFields);
-    $('#property-form').elements.entry_price.addEventListener('input',syncPriceFields);
-    $$('[name="price_highlight"]').forEach(radio => radio.addEventListener('change',syncPriceFields));
+    // Price display is now driven by the builder (initPriceRows); the legacy selects no longer exist.
     syncPriceFields();
     $('#admin-search').addEventListener('input',renderAdmin);
     $('#admin-category-filter').addEventListener('change',renderAdmin);
@@ -1076,12 +1196,14 @@
     $('#property-form').addEventListener('reset',()=>{
       clearPendingPhotos();
       $('#floor-plans-editor').replaceChildren();
+      $('#price-rows').replaceChildren();
+      addPriceRow({ label: 'Valor total', text: '', highlight: true });
       setTimeout(()=>{renderPhotoPreview();updatePropertyCodeHint();syncPriceFields();});
     });
     $('#cancel-property-edit').onclick=()=>{const form=$('#property-form');form.reset();setPropertyFormMode(false);renderPhotoPreview();};
     $('#preview-property').onclick=()=>{
       const f=$('#property-form');const fd=new FormData(f);
-      const temp={id:'preview',title:fd.get('title')||'Pré-visualização',description:fd.get('description'),category:fd.get('category'),region:fd.get('region'),price:fd.get('price'),price_display:fd.get('price_display'),entry_price:fd.get('entry_price'),entry_label:fd.get('entry_label'),entry_installments:fd.get('entry_installments'),entry_mode:fd.get('entry_mode'),price_highlight:fd.get('price_highlight'),price_highlight_label:fd.get('price_highlight_label'),price_secondary_label:fd.get('price_secondary_label'),price_extra_label:fd.get('price_extra_label'),status:'published',photos:state.pendingPhotos,featured:fd.get('featured')==='on',bedrooms:fd.get('bedrooms'),area:fd.get('area'),features:{items:String(fd.get('features')).split(',').map(value=>value.trim()).filter(Boolean),floor_plans:readFloorPlans()},payment:fd.get('payment')};
+      const temp={id:'preview',title:fd.get('title')||'Pré-visualização',description:fd.get('description'),category:fd.get('category'),region:fd.get('region'),price:fd.get('price'),price_items:readPriceRows(),price_display:fd.get('price_display'),entry_price:fd.get('entry_price'),entry_label:fd.get('entry_label'),entry_installments:fd.get('entry_installments'),entry_mode:fd.get('entry_mode'),price_highlight:fd.get('price_highlight'),price_highlight_label:fd.get('price_highlight_label'),price_secondary_label:fd.get('price_secondary_label'),price_extra_label:fd.get('price_extra_label'),status:'published',photos:state.pendingPhotos,featured:fd.get('featured')==='on',bedrooms:fd.get('bedrooms'),area:fd.get('area'),features:{items:String(fd.get('features')).split(',').map(value=>value.trim()).filter(Boolean),floor_plans:readFloorPlans()},payment:fd.get('payment')};
       state.properties.unshift(temp);openProperty('preview');state.properties.shift();
     };
   }

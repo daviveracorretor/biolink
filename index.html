@@ -269,45 +269,25 @@
               <div class="form-row">
                 <label>Categoria<select name="category" required></select></label>
                 <label>Região<input name="region" required></label>
-                <label>Valor total do imóvel (R$)<input name="price" type="number" min="0.01" step="0.01" inputmode="decimal"></label>
               </div>
-              <fieldset class="price-options">
-                <legend>Como exibir os valores <span>(opcional)</span></legend>
-                <label>Exibição
-                  <select name="price_display">
-                    <option value="total">Valor total</option>
-                    <option value="entry">Somente entrada ou sinal</option>
-                    <option value="both">Valor total e entrada/sinal</option>
-                  </select>
-                </label>
-                <div class="price-entry-fields" id="price-entry-fields" hidden>
-                  <label>Chamar de<select name="entry_label"><option value="Entrada">Entrada</option><option value="Sinal">Sinal</option></select></label>
-                  <label>Valor da entrada/sinal (R$)<input name="entry_price" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="Ex.: 25000.00"></label>
-                  <label>Tipo de pagamento da entrada/sinal
-                    <select name="entry_mode">
-                      <option value="amount">Valor em reais</option>
-                      <option value="installments">Somente o número de parcelas</option>
-                    </select>
-                  </label>
-                  <label class="entry-installments-field" id="entry-installments-field">Número de parcelas
-                    <span class="input-suffix"><input name="entry_installments" type="number" min="1" max="600" step="1" inputmode="numeric" placeholder="Ex.: 24"><span>vezes</span></span>
-                  </label>
-                </div>
-                <fieldset class="price-highlight" id="price-highlight-fieldset">
-                  <legend>Qual valor fica em destaque no anúncio</legend>
-                  <div class="highlight-choices">
-                    <label class="highlight-choice"><input type="radio" name="price_highlight" value="total"><span>Valor total</span></label>
-                    <label class="highlight-choice"><input type="radio" name="price_highlight" value="entry"><span>Entrada ou sinal</span></label>
-                    <label class="highlight-choice"><input type="radio" name="price_highlight" value="auto"><span>Automático</span></label>
-                  </div>
-                  <p class="field-hint">O valor escolhido aparece grande no card e no anúncio; o outro fica em segundo plano. Em “Automático”, a entrada/sinal tem preferência quando existe.</p>
-                  <div class="custom-labels" id="custom-labels">
-                    <label>Texto do destaque (opcional)<input name="price_highlight_label" maxlength="60" placeholder="Ex.: Sinal de R$ 20 mil"></label>
-                    <label>Texto do valor secundário (opcional)<input name="price_secondary_label" maxlength="60" placeholder="Ex.: Restante da entrada em 40x"></label>
-                    <label>Texto extra (opcional)<input name="price_extra_label" maxlength="60" placeholder="Ex.: Valor total de 299 mil"></label>
-                    <p class="field-hint">Se preencher, este texto substitui o valor automático naquele campo. Deixe em branco para o site montar o valor a partir dos números.</p>
-                  </div>
-                </fieldset>
+              <!-- Valores do anúncio: linhas livres, cada uma com destaque opcional. -->
+              <fieldset class="price-options price-builder">
+                <legend>Valores do anúncio</legend>
+                <p class="field-hint">Monte como o valor aparece no site. Cada linha tem uma etiqueta e um texto livre — escreva do seu jeito: “Sinal de R$ 20 mil”, “Restante da entrada em 40x”, “Valor total R$ 299 mil”. Marque a estrela para o valor que deve aparecer em destaque.</p>
+                <div class="price-rows" id="price-rows"></div>
+                <button type="button" class="button button-ghost" id="add-price-row">+ Adicionar valor</button>
+                <p class="field-hint price-builder-total">Para ordenação e busca o site guarda um valor numérico: <strong id="price-numeric-preview">—</strong>. Ele é lido da linha marcada como principal, sem o texto.</p>
+                <!-- Campos legados mantidos em sincronia com a primeira linha destacada. -->
+                <input type="hidden" name="price">
+                <input type="hidden" name="price_display" value="both">
+                <input type="hidden" name="entry_label" value="Entrada">
+                <input type="hidden" name="entry_price">
+                <input type="hidden" name="entry_installments">
+                <input type="hidden" name="entry_mode" value="amount">
+                <input type="hidden" name="price_highlight" value="auto">
+                <input type="hidden" name="price_highlight_label">
+                <input type="hidden" name="price_secondary_label">
+                <input type="hidden" name="price_extra_label">
               </fieldset>
               <div class="form-row">
                 <label>Área (m²)<input name="area" type="number" min="0" step="0.01" inputmode="decimal"></label>
