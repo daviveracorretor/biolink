@@ -951,16 +951,21 @@
         : {method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({id,...payload})};
       // If the database has not been migrated yet, drop the optional columns and save the rest so the
       // edit is never lost; the status message explains what is missing.
+      // `optionalUnavailable` lists the columns the database did not accept; it is declared here,
+      // next to the retry that fills it. (It used to be referenced below without being declared in
+      // this scope, which threw "optionalUnavailable is not defined" even after a successful save.)
       let savedRows;
+      let optionalUnavailable = [];
       try {
         savedRows = await api(savePath, saveOptions);
       } catch (error) {
-        const missing = optional.filter(column => error.message.includes(column));
+        const reason = String(error?.message ?? error ?? '');
+        const missing = optional.filter(column => reason.includes(column));
         if (!missing.length) throw error;
         missing.forEach(column => { delete payload[column]; });
         const retryBody = formData.get('id') ? payload : { id, ...payload };
         savedRows = await api(savePath, { ...saveOptions, body: JSON.stringify(retryBody) });
-        setAdminStatus(`Imóvel salvo. As colunas ${missing.join(', ')} ainda não existem na tabela properties: rode a migração supabase/migrations/20261107120000_price_highlight_and_entry_mode.sql para usar o destaque de valor e a entrada só por parcelas.`, true);
+        optionalUnavailable = missing;
       }
       const existingIndex = state.properties.findIndex(property => String(property.id) === String(id));
       const savedProperty = savedRows?.[0] || {...(existingIndex >= 0 ? state.properties[existingIndex] : {}),...payload,id};
