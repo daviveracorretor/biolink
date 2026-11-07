@@ -21,18 +21,52 @@
   const wa = (message = 'Olá, Davi! Gostaria de conversar sobre imóveis em Cascavel.') => config.whatsapp ? `https://wa.me/${encodeURIComponent(config.whatsapp)}?text=${encodeURIComponent(message)}` : '#admin';
   const money = n => n ? `A partir de ${Number(n).toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:2 })}` : 'Consulte condições';
   const propertyOrder = (a,b) => Number(Boolean(b.featured))-Number(Boolean(a.featured)) || Number(a.display_order ?? Number.MAX_SAFE_INTEGER)-Number(b.display_order ?? Number.MAX_SAFE_INTEGER) || String(b.created_at||'').localeCompare(String(a.created_at||''));
-  function propertyPriceMarkup(property, className) {
-    const mode = ['entry','both'].includes(property.price_display) ? property.price_display : 'total';
-    const total = Number(property.price) > 0;
-    const entry = Number(property.entry_price) > 0;
+  // Price presentation
+  // price_display : total | entry | both  (which values the listing shows at all)
+  // price_highlight: total | entry | auto  (which of them is the big, emphasised number)
+  // entry_mode     : amount | installments (the entry is shown as R$ value or only as "Nx")
+  function priceValues(property) {
+    const total = Number(property.price) > 0 ? Number(property.price) : null;
+    const entryAmount = Number(property.entry_price) > 0 ? Number(property.entry_price) : null;
+    const installments = Number(property.entry_installments) > 0 ? Math.round(Number(property.entry_installments)) : null;
     const entryName = property.entry_label === 'Sinal' ? 'Sinal' : 'Entrada';
-    const installments = Number(property.entry_installments) > 0 ? `<small>${esc(entryName)} em até ${esc(property.entry_installments)}x</small>` : '';
-    const totalLine = total ? `<span class="price-line">${mode==='both'?'<span class="price-kind">Valor total</span>':''}${money(property.price)}</span>` : '';
-    const entryLine = entry ? `<span class="price-line"><span class="price-kind">${esc(entryName)}</span>${money(property.entry_price)}${installments}</span>` : '';
-    if (mode === 'entry' && entry) return `<div class="${className} price-lines">${entryLine}</div>`;
-    if (mode === 'both') return `<div class="${className} price-lines">${totalLine}${entryLine}${!total && !entry ? '<span class="price-line">Consulte condições</span>':''}</div>`;
-    return `<div class="${className} price-lines">${totalLine || '<span class="price-line">Consulte condições</span>'}</div>`;
+    const entryInstallmentsOnly = property.entry_mode === 'installments' && installments;
+    return { total, entryAmount, installments, entryName, entryInstallmentsOnly };
   }
+  function propertyPriceMarkup(property, className) {
+    const mode = ['entry', 'both'].includes(property.price_display) ? property.price_display : 'total';
+    const { total, entryAmount, installments, entryName, entryInstallmentsOnly } = priceValues(property);
+    const hasEntry = Boolean(entryAmount || (entryInstallmentsOnly && installments));
+    if (!total && !hasEntry) return `<div class="${className} price-lines"><span class="price-main">Consulte condições</span></div>`;
+
+    // Which value leads: an explicit choice wins, otherwise the entry leads when it exists.
+    const highlight = ['total', 'entry'].includes(property.price_highlight)
+      ? property.price_highlight
+      : (hasEntry && mode !== 'total' ? 'entry' : 'total');
+
+    const totalText = total
+      ? `${money(total)}${installments && !entryAmount ? '' : ''}`
+      : 'Consulte condições';
+    const entryText = entryAmount
+      ? money(entryAmount)
+      : installments ? `em até ${installments}x` : 'Consulte condições';
+    const entrySub = entryAmount && installments ? `${entryName} em até ${installments}x` : '';
+
+    const totalBlock = total
+      ? `<span class="price-line price-${highlight === 'total' ? 'main' : 'secondary'}"><span class="price-kind">Valor total</span><span class="price-value">${esc(totalText)}</span></span>`
+      : '';
+    const entryBlock = hasEntry
+      ? `<span class="price-line price-${highlight === 'entry' ? 'main' : 'secondary'}"><span class="price-kind">${esc(entryName)}</span><span class="price-value">${esc(entryText)}</span>${entrySub ? `<small>${esc(entrySub)}</small>` : ''}</span>`
+      : '';
+
+    if (mode === 'entry') return `<div class="${className} price-lines">${entryBlock || `<span class="price-line price-main">${esc(total ? money(total) : 'Consulte condições')}</span>`}</div>`;
+    if (mode === 'both') {
+      const blocks = highlight === 'total' ? `${totalBlock || ''}${entryBlock}` : `${entryBlock || ''}${totalBlock}`;
+      return `<div class="${className} price-lines">${blocks}</div>`;
+    }
+    return `<div class="${className} price-lines">${totalBlock || entryBlock || '<span class="price-line price-main">Consulte condições</span>'}</div>`;
+  }
+
   const categoryKey = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
   const categoryAliases = { planta:'Planta', novos:'Planta', lancamento:'Planta', lancamentos:'Planta', cohapar:'Cohapar', mcmv:'Cohapar', 'minha casa minha vida':'Cohapar', lotes:'Lotes', terrenos:'Lotes', prontos:'Prontos', casas:'Prontos', 'apartamentos prontos':'Prontos' };
   const categoryCodePrefixes = { planta:'PL', novos:'PL', lancamentos:'PL', cohapar:'CH', 'minha casa minha vida':'CH', lotes:'LT', terrenos:'LT', prontos:'PR', casas:'PR', 'apartamentos prontos':'PR' };
@@ -752,14 +786,38 @@
     $('#cancel-property-edit').hidden = !editing;
   }
   function syncPriceFields() {
-    const form=$('#property-form'), mode=form.elements.price_display.value;
-    const entryVisible=mode==='entry'||mode==='both';
-    const totalRequired=mode==='total'||mode==='both';
-    $('#price-entry-fields').hidden=!entryVisible;
-    form.elements.price.required=totalRequired;
-    form.elements.entry_price.required=entryVisible;
+    const form = $('#property-form');
+    if (!form) return;
+    const mode = form.elements.price_display.value;
+    const entryMode = form.elements.entry_mode.value;
+    const entryVisible = mode === 'entry' || mode === 'both';
+    const totalRequired = mode === 'total' || mode === 'both';
+    const amountField = form.elements.entry_price;
+    const installmentsField = form.elements.entry_installments;
+    const installmentsOnly = entryMode === 'installments';
+
+    $('#price-entry-fields').hidden = !entryVisible;
+    form.elements.price.required = totalRequired;
+    // "Somente o número de parcelas" hides the R$ field and makes the parcelas the required value.
+    amountField.closest('label').hidden = installmentsOnly;
+    amountField.required = entryVisible && !installmentsOnly;
+    $('#entry-installments-field').hidden = !entryVisible;
+    installmentsField.required = entryVisible && installmentsOnly;
+    const suffix = installmentsField.closest('label').querySelector('.input-suffix > span');
+    if (suffix) suffix.textContent = installmentsOnly ? 'x' : 'vezes';
+
+    // The highlight only makes sense when both values exist.
+    const highlightFieldset = $('#price-highlight-fieldset');
+    highlightFieldset.hidden = mode !== 'both';
+    const chosen = form.querySelector('[name="price_highlight"]:checked');
+    const allowed = installmentsOnly && !Number(amountField.value) ? ['entry', 'auto'] : ['total', 'entry', 'auto'];
+    form.querySelectorAll('[name="price_highlight"]').forEach(radio => { radio.disabled = !allowed.includes(radio.value); });
+    if (!chosen || chosen.disabled) {
+      const fallback = form.querySelector(`[name="price_highlight"][value="${installmentsOnly ? 'entry' : 'auto'}"]:not(:disabled)`) || form.querySelector('[name="price_highlight"]:not(:disabled)');
+      if (fallback) fallback.checked = true;
+    }
   }
-  function fillForm(p) { const f=$('#property-form'); f.reset(); f.elements.id.value=p.id; ['title','description','category','region','price','area','bedrooms','suites','bathrooms','parking','payment','status','price_display','entry_price','entry_label','entry_installments'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); f.elements.price_display.value=p.price_display||'total'; f.elements.entry_label.value=p.entry_label||'Entrada'; f.elements.code.value=p.code??''; f.elements.category.value=canonicalCategory(p.category); f.elements.features.value=propertyFeatures(p).join(', '); propertyFloorPlans(p).forEach(plan=>addFloorPlanRow(plan));f.elements.featured.checked=!!p.featured;state.pendingPhotos=orderedPropertyPhotos(p);state.coverPhoto=state.pendingPhotos[0]?.path||null;syncPriceFields();setPropertyFormMode(true,p.title);updatePropertyCodeHint();renderPhotoPreview();f.scrollIntoView({behavior:'smooth',block:'start'}); }
+  function fillForm(p) { const f=$('#property-form'); f.reset(); f.elements.id.value=p.id; ['title','description','category','region','price','area','bedrooms','suites','bathrooms','parking','payment','status','price_display','entry_price','entry_label','entry_installments','entry_mode','price_highlight'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); f.elements.price_display.value=p.price_display||'total'; f.elements.entry_label.value=p.entry_label||'Entrada'; f.elements.entry_mode.value=p.entry_mode==='installments'?'installments':'amount'; const highlightChoice=f.querySelector(`[name="price_highlight"][value="${['total','entry'].includes(p.price_highlight)?p.price_highlight:'auto'}"]`); if(highlightChoice) highlightChoice.checked=true; f.elements.code.value=p.code??''; f.elements.category.value=canonicalCategory(p.category); f.elements.features.value=propertyFeatures(p).join(', '); propertyFloorPlans(p).forEach(plan=>addFloorPlanRow(plan));f.elements.featured.checked=!!p.featured;state.pendingPhotos=orderedPropertyPhotos(p);state.coverPhoto=state.pendingPhotos[0]?.path||null;syncPriceFields();setPropertyFormMode(true,p.title);updatePropertyCodeHint();renderPhotoPreview();f.scrollIntoView({behavior:'smooth',block:'start'}); }
   function movePendingPhoto(from, to) {
     if (to < 0 || to >= state.pendingPhotos.length || from < 0 || from >= state.pendingPhotos.length) return;
     const [photo] = state.pendingPhotos.splice(from, 1);
@@ -859,7 +917,7 @@
         price: Number(formData.get('price')) || null, area: Number(formData.get('area')) || null,
         bedrooms: Number(formData.get('bedrooms')) || null, suites: Number(formData.get('suites')) || null,
         bathrooms: Number(formData.get('bathrooms')) || null, parking: Number(formData.get('parking')) || null,
-        price_display:formData.get('price_display')||'total', entry_price:Number(formData.get('entry_price'))||null, entry_label:formData.get('entry_label')||'Entrada', entry_installments:Number(formData.get('entry_installments'))||null,
+        price_display:formData.get('price_display')||'total', entry_price:Number(formData.get('entry_price'))||null, entry_label:formData.get('entry_label')||'Entrada', entry_installments:Number(formData.get('entry_installments'))||null, entry_mode:formData.get('entry_mode')||'amount', price_highlight:formData.get('price_highlight')||'auto',
         features: { items:String(formData.get('features')).split(',').map(value => value.trim()).filter(Boolean), floor_plans:readFloorPlans() },
         payment: formData.get('payment'), code: formData.get('id') ? formData.get('code') : undefined, status: formData.get('status'),
         featured: formData.get('featured') === 'on', photos: state.pendingPhotos, cover: state.coverPhoto || state.pendingPhotos[0]?.path || null,
@@ -962,6 +1020,9 @@
     $('#property-form').addEventListener('submit',saveProperty);
     $('#property-form').elements.category.addEventListener('change',updatePropertyCodeHint);
     $('#property-form').elements.price_display.addEventListener('change',syncPriceFields);
+    $('#property-form').elements.entry_mode.addEventListener('change',syncPriceFields);
+    $('#property-form').elements.entry_price.addEventListener('input',syncPriceFields);
+    $$('[name="price_highlight"]').forEach(radio => radio.addEventListener('change',syncPriceFields));
     syncPriceFields();
     $('#admin-search').addEventListener('input',renderAdmin);
     $('#admin-category-filter').addEventListener('change',renderAdmin);
@@ -987,7 +1048,7 @@
     $('#cancel-property-edit').onclick=()=>{const form=$('#property-form');form.reset();setPropertyFormMode(false);renderPhotoPreview();};
     $('#preview-property').onclick=()=>{
       const f=$('#property-form');const fd=new FormData(f);
-      const temp={id:'preview',title:fd.get('title')||'Pré-visualização',description:fd.get('description'),category:fd.get('category'),region:fd.get('region'),price:fd.get('price'),price_display:fd.get('price_display'),entry_price:fd.get('entry_price'),entry_label:fd.get('entry_label'),entry_installments:fd.get('entry_installments'),status:'published',photos:state.pendingPhotos,featured:fd.get('featured')==='on',bedrooms:fd.get('bedrooms'),area:fd.get('area'),features:{items:String(fd.get('features')).split(',').map(value=>value.trim()).filter(Boolean),floor_plans:readFloorPlans()},payment:fd.get('payment')};
+      const temp={id:'preview',title:fd.get('title')||'Pré-visualização',description:fd.get('description'),category:fd.get('category'),region:fd.get('region'),price:fd.get('price'),price_display:fd.get('price_display'),entry_price:fd.get('entry_price'),entry_label:fd.get('entry_label'),entry_installments:fd.get('entry_installments'),entry_mode:fd.get('entry_mode'),price_highlight:fd.get('price_highlight'),status:'published',photos:state.pendingPhotos,featured:fd.get('featured')==='on',bedrooms:fd.get('bedrooms'),area:fd.get('area'),features:{items:String(fd.get('features')).split(',').map(value=>value.trim()).filter(Boolean),floor_plans:readFloorPlans()},payment:fd.get('payment')};
       state.properties.unshift(temp);openProperty('preview');state.properties.shift();
     };
   }

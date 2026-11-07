@@ -273,12 +273,35 @@
               </div>
               <fieldset class="price-options">
                 <legend>Como exibir os valores <span>(opcional)</span></legend>
-                <label>Exibição<select name="price_display"><option value="total">Valor total</option><option value="entry">Somente entrada ou sinal</option><option value="both">Valor total e entrada/sinal</option></select></label>
+                <label>Exibição
+                  <select name="price_display">
+                    <option value="total">Valor total</option>
+                    <option value="entry">Somente entrada ou sinal</option>
+                    <option value="both">Valor total e entrada/sinal</option>
+                  </select>
+                </label>
                 <div class="price-entry-fields" id="price-entry-fields" hidden>
-                  <label>Mostrar como<select name="entry_label"><option value="Entrada">Entrada</option><option value="Sinal">Sinal</option></select></label>
+                  <label>Chamar de<select name="entry_label"><option value="Entrada">Entrada</option><option value="Sinal">Sinal</option></select></label>
                   <label>Valor da entrada/sinal (R$)<input name="entry_price" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="Ex.: 25000.00"></label>
-                  <label>Parcelamento da entrada/sinal (opcional)<span class="input-suffix"><input name="entry_installments" type="number" min="1" max="600" step="1" inputmode="numeric" placeholder="Ex.: 24"><span>vezes</span></span></label>
+                  <label>Tipo de pagamento da entrada/sinal
+                    <select name="entry_mode">
+                      <option value="amount">Valor em reais</option>
+                      <option value="installments">Somente o número de parcelas</option>
+                    </select>
+                  </label>
+                  <label class="entry-installments-field" id="entry-installments-field">Número de parcelas
+                    <span class="input-suffix"><input name="entry_installments" type="number" min="1" max="600" step="1" inputmode="numeric" placeholder="Ex.: 24"><span>vezes</span></span>
+                  </label>
                 </div>
+                <fieldset class="price-highlight" id="price-highlight-fieldset">
+                  <legend>Qual valor fica em destaque no anúncio</legend>
+                  <div class="highlight-choices">
+                    <label class="highlight-choice"><input type="radio" name="price_highlight" value="total"><span>Valor total</span></label>
+                    <label class="highlight-choice"><input type="radio" name="price_highlight" value="entry"><span>Entrada ou sinal</span></label>
+                    <label class="highlight-choice"><input type="radio" name="price_highlight" value="auto"><span>Automático</span></label>
+                  </div>
+                  <p class="field-hint">O valor escolhido aparece grande no card e no anúncio; o outro fica em segundo plano. Em “Automático”, a entrada/sinal tem preferência quando existe.</p>
+                </fieldset>
               </fieldset>
               <div class="form-row">
                 <label>Área (m²)<input name="area" type="number" min="0" step="0.01" inputmode="decimal"></label>

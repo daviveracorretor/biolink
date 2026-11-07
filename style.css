@@ -508,9 +508,16 @@ button { cursor: pointer; }
   margin: 12px 0 0;
   color: var(--white); font-size: 20px; font-weight: 700; letter-spacing: -.02em;
 }
-.price-lines { display: grid; gap: 4px; }
+.price-lines { display: grid; gap: 6px; }
 .price-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; }
-.price-kind { color: var(--label); font-size: .62em; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.price-kind { color: var(--label); font-size: .6em; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.price-value { font-weight: 700; letter-spacing: -.02em; }
+/* The highlighted value is the headline of the card; the other one steps back in size and tone. */
+.price-line.price-main { color: var(--white); }
+.price-line.price-main .price-value { font-size: 1.15em; }
+.price-line.price-secondary { color: var(--label-strong); }
+.price-line.price-secondary .price-value { font-size: .82em; font-weight: 500; }
+.price-line.price-secondary .price-kind { color: var(--label); }
 .price-line small { flex-basis: 100%; color: var(--label); font-size: .62em; font-weight: 500; }
 .property-meta {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
@@ -769,7 +776,27 @@ button { cursor: pointer; }
 .price-options > label { max-width: 360px; }
 .price-options legend { padding: 0 6px; color: var(--white); font-size: 13px; font-weight: 600; }
 .price-options legend span { color: var(--label); font-weight: 400; }
-.price-entry-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: end; }
+.price-entry-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: end; }
+.price-entry-fields[hidden], .price-highlight[hidden], .entry-installments-field[hidden] { display: none; }
+.price-highlight {
+  display: grid; gap: 10px;
+  margin: 0; padding: 14px;
+  border: 1px solid var(--hairline); border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+.price-highlight legend { padding: 0 6px; color: var(--white); font-size: 12.5px; font-weight: 600; }
+.highlight-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.highlight-choice {
+  display: inline-flex !important; align-items: center; gap: 8px;
+  flex: 0 0 auto; min-height: 40px; padding: 0 14px;
+  border: 1px solid var(--hairline); border-radius: var(--radius-pill);
+  background: var(--surface-3); color: var(--label-strong);
+  font-size: 12.5px; font-weight: 600; white-space: nowrap; cursor: pointer;
+  transition: border-color .2s ease, background-color .2s ease, color .2s ease;
+}
+.highlight-choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); color: var(--white); }
+.highlight-choice:has(input:disabled) { opacity: .45; cursor: not-allowed; }
+.highlight-choice input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
 .input-suffix { display: flex; align-items: center; gap: 8px; }
 .input-suffix > span { color: var(--label); font-size: 12px; }
 .floor-plans-field strong { font-size: 13px; font-weight: 600; }
@@ -1228,8 +1255,7 @@ dialog[open] { animation: dialog-in .28s var(--ease-out); }
   .admin-content { padding: 4px 16px 18px; }
   .admin-section details > summary { padding: 16px; }
   .form-row > label { flex-basis: 100%; }
-  .price-entry-fields { grid-template-columns: 1fr 1fr; }
-  .price-entry-fields label:nth-child(3) { grid-column: 1 / -1; }
+  .price-entry-fields { grid-template-columns: 1fr; }
   .floor-plan-row { grid-template-columns: 1fr 1fr; }
   .admin-property-tools { grid-template-columns: 1fr; }
   .admin-property-tools input { grid-column: auto; }
