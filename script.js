@@ -35,36 +35,41 @@
   }
   function propertyPriceMarkup(property, className) {
     const mode = ['entry', 'both'].includes(property.price_display) ? property.price_display : 'total';
-    const { total, entryAmount, installments, entryName, entryInstallmentsOnly } = priceValues(property);
-    const hasEntry = Boolean(entryAmount || (entryInstallmentsOnly && installments));
-    if (!total && !hasEntry) return `<div class="${className} price-lines"><span class="price-main">Consulte condições</span></div>`;
+    const { total, entryAmount, installments, entryName } = priceValues(property);
+    const hasEntry = Boolean(entryAmount || (property.entry_mode === 'installments' && installments));
+    const customMain = String(property.price_highlight_label || '').trim();
+    const customSecondary = String(property.price_secondary_label || '').trim();
+    const customExtra = String(property.price_extra_label || '').trim();
 
-    // Which value leads: an explicit choice wins, otherwise the entry leads when it exists.
+    if (!total && !hasEntry && !customMain) {
+      return `<div class="${className} price-lines"><span class="price-line price-main"><span class="price-value">Consulte condições</span></span></div>`;
+    }
+
     const highlight = ['total', 'entry'].includes(property.price_highlight)
       ? property.price_highlight
       : (hasEntry && mode !== 'total' ? 'entry' : 'total');
 
-    const totalText = total
-      ? `${money(total)}${installments && !entryAmount ? '' : ''}`
-      : 'Consulte condições';
-    const entryText = entryAmount
-      ? money(entryAmount)
-      : installments ? `em até ${installments}x` : 'Consulte condições';
-    const entrySub = entryAmount && installments ? `${entryName} em até ${installments}x` : '';
+    // Automatic text, used only where the administrator left the custom field empty.
+    const autoMain = highlight === 'total'
+      ? (total ? money(total) : 'Consulte condições')
+      : (entryAmount ? money(entryAmount) : installments ? `em até ${installments}x` : 'Consulte condições');
+    const autoSecondary = highlight === 'total'
+      ? (entryAmount ? money(entryAmount) : installments ? `em até ${installments}x` : '')
+      : (total ? money(total) : '');
+    const mainKind = highlight === 'total' ? 'Valor total' : entryName;
+    const secondaryKind = highlight === 'total' ? entryName : 'Valor total';
 
-    const totalBlock = total
-      ? `<span class="price-line price-${highlight === 'total' ? 'main' : 'secondary'}"><span class="price-kind">Valor total</span><span class="price-value">${esc(totalText)}</span></span>`
+    const mainText = customMain || autoMain;
+    const secondaryText = customSecondary || autoSecondary;
+    const mainBlock = `<span class="price-line price-main"><span class="price-kind">${esc(mainKind)}</span><span class="price-value">${esc(mainText)}</span></span>`;
+    const secondaryBlock = secondaryText
+      ? `<span class="price-line price-secondary"><span class="price-kind">${esc(secondaryKind)}</span><span class="price-value">${esc(secondaryText)}</span></span>`
       : '';
-    const entryBlock = hasEntry
-      ? `<span class="price-line price-${highlight === 'entry' ? 'main' : 'secondary'}"><span class="price-kind">${esc(entryName)}</span><span class="price-value">${esc(entryText)}</span>${entrySub ? `<small>${esc(entrySub)}</small>` : ''}</span>`
-      : '';
+    const extraBlock = customExtra ? `<span class="price-line price-extra"><span class="price-value">${esc(customExtra)}</span></span>` : '';
 
-    if (mode === 'entry') return `<div class="${className} price-lines">${entryBlock || `<span class="price-line price-main">${esc(total ? money(total) : 'Consulte condições')}</span>`}</div>`;
-    if (mode === 'both') {
-      const blocks = highlight === 'total' ? `${totalBlock || ''}${entryBlock}` : `${entryBlock || ''}${totalBlock}`;
-      return `<div class="${className} price-lines">${blocks}</div>`;
-    }
-    return `<div class="${className} price-lines">${totalBlock || entryBlock || '<span class="price-line price-main">Consulte condições</span>'}</div>`;
+    if (mode === 'entry') return `<div class="${className} price-lines">${mainBlock}${extraBlock}</div>`;
+    if (mode === 'both') return `<div class="${className} price-lines">${mainBlock}${secondaryBlock}${extraBlock}</div>`;
+    return `<div class="${className} price-lines">${mainBlock}${extraBlock}</div>`;
   }
 
   const categoryKey = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
@@ -809,6 +814,7 @@
     // The highlight only makes sense when both values exist.
     const highlightFieldset = $('#price-highlight-fieldset');
     highlightFieldset.hidden = mode !== 'both';
+    $('#custom-labels').hidden = mode === 'entry' ? false : mode !== 'both';
     const chosen = form.querySelector('[name="price_highlight"]:checked');
     const allowed = installmentsOnly && !Number(amountField.value) ? ['entry', 'auto'] : ['total', 'entry', 'auto'];
     form.querySelectorAll('[name="price_highlight"]').forEach(radio => { radio.disabled = !allowed.includes(radio.value); });
@@ -817,7 +823,7 @@
       if (fallback) fallback.checked = true;
     }
   }
-  function fillForm(p) { const f=$('#property-form'); f.reset(); f.elements.id.value=p.id; ['title','description','category','region','price','area','bedrooms','suites','bathrooms','parking','payment','status','price_display','entry_price','entry_label','entry_installments','entry_mode','price_highlight'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); f.elements.price_display.value=p.price_display||'total'; f.elements.entry_label.value=p.entry_label||'Entrada'; f.elements.entry_mode.value=p.entry_mode==='installments'?'installments':'amount'; const highlightChoice=f.querySelector(`[name="price_highlight"][value="${['total','entry'].includes(p.price_highlight)?p.price_highlight:'auto'}"]`); if(highlightChoice) highlightChoice.checked=true; f.elements.code.value=p.code??''; f.elements.category.value=canonicalCategory(p.category); f.elements.features.value=propertyFeatures(p).join(', '); propertyFloorPlans(p).forEach(plan=>addFloorPlanRow(plan));f.elements.featured.checked=!!p.featured;state.pendingPhotos=orderedPropertyPhotos(p);state.coverPhoto=state.pendingPhotos[0]?.path||null;syncPriceFields();setPropertyFormMode(true,p.title);updatePropertyCodeHint();renderPhotoPreview();f.scrollIntoView({behavior:'smooth',block:'start'}); }
+  function fillForm(p) { const f=$('#property-form'); f.reset(); f.elements.id.value=p.id; ['title','description','category','region','price','area','bedrooms','suites','bathrooms','parking','payment','status','price_display','entry_price','entry_label','entry_installments','entry_mode','price_highlight','price_highlight_label','price_secondary_label','price_extra_label'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); f.elements.price_display.value=p.price_display||'total'; f.elements.entry_label.value=p.entry_label||'Entrada'; f.elements.entry_mode.value=p.entry_mode==='installments'?'installments':'amount'; ['price_highlight_label','price_secondary_label','price_extra_label'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); const highlightChoice=f.querySelector(`[name="price_highlight"][value="${['total','entry'].includes(p.price_highlight)?p.price_highlight:'auto'}"]`); if(highlightChoice) highlightChoice.checked=true; f.elements.code.value=p.code??''; f.elements.category.value=canonicalCategory(p.category); f.elements.features.value=propertyFeatures(p).join(', '); propertyFloorPlans(p).forEach(plan=>addFloorPlanRow(plan));f.elements.featured.checked=!!p.featured;state.pendingPhotos=orderedPropertyPhotos(p);state.coverPhoto=state.pendingPhotos[0]?.path||null;syncPriceFields();setPropertyFormMode(true,p.title);updatePropertyCodeHint();renderPhotoPreview();f.scrollIntoView({behavior:'smooth',block:'start'}); }
   function movePendingPhoto(from, to) {
     if (to < 0 || to >= state.pendingPhotos.length || from < 0 || from >= state.pendingPhotos.length) return;
     const [photo] = state.pendingPhotos.splice(from, 1);
@@ -914,13 +920,16 @@
       submit.textContent = 'Salvando anúncio…';
       // Only columns that exist in the table are sent. PostgREST rejects the whole request when one
     // column is missing (PGRST204 / 42703), and that was silently discarding every edit.
-    const optional = ['entry_mode', 'price_highlight'];
+    const optional = ['entry_mode', 'price_highlight', 'price_highlight_label', 'price_secondary_label', 'price_extra_label'];
     const payload = {
         title: formData.get('title'), description: formData.get('description'), category: formData.get('category'), region: formData.get('region'),
         price: Number(formData.get('price')) || null, area: Number(formData.get('area')) || null,
         bedrooms: Number(formData.get('bedrooms')) || null, suites: Number(formData.get('suites')) || null,
         bathrooms: Number(formData.get('bathrooms')) || null, parking: Number(formData.get('parking')) || null,
         price_display:formData.get('price_display')||'total', entry_price:Number(formData.get('entry_price'))||null, entry_label:formData.get('entry_label')||'Entrada', entry_installments:Number(formData.get('entry_installments'))||null, entry_mode:formData.get('entry_mode')||'amount', price_highlight:formData.get('price_highlight')||'auto',
+        price_highlight_label:String(formData.get('price_highlight_label')||'').trim()||null,
+        price_secondary_label:String(formData.get('price_secondary_label')||'').trim()||null,
+        price_extra_label:String(formData.get('price_extra_label')||'').trim()||null,
         features: { items:String(formData.get('features')).split(',').map(value => value.trim()).filter(Boolean), floor_plans:readFloorPlans() },
         payment: formData.get('payment'), code: formData.get('id') ? formData.get('code') : undefined, status: formData.get('status'),
         featured: formData.get('featured') === 'on', photos: state.pendingPhotos, cover: state.coverPhoto || state.pendingPhotos[0]?.path || null,
@@ -962,7 +971,7 @@
       const savedCode = savedProperty?.code || payload.code;
       const codeNote = savedCode ? ` Código ${savedCode}.` : ' O código será exibido na lista após a próxima atualização.';
       const schemaNote = optionalUnavailable.length
-        ? ` Atenção: as colunas ${optionalUnavailable.join(' e ')} ainda não existem na tabela; rode a migração 20261107120000_price_highlight_and_entry_mode.sql para liberar o destaque de valor e a entrada por parcelas.`
+        ? ` Atenção: as colunas ${optionalUnavailable.join(' e ')} ainda não existem na tabela; rode as migrações 20261107120000_price_highlight_and_entry_mode.sql e 20261107130000_custom_price_labels.sql no Supabase para liberar o destaque de valor, a entrada por parcelas e os textos personalizados.`
         : '';
       setAdminStatus(`“${payload.title}” salvo como ${statusLabel(payload.status).toLowerCase()}.${codeNote}${schemaNote}`, Boolean(optionalUnavailable.length));
     } catch (error) {
@@ -1067,7 +1076,7 @@
     $('#cancel-property-edit').onclick=()=>{const form=$('#property-form');form.reset();setPropertyFormMode(false);renderPhotoPreview();};
     $('#preview-property').onclick=()=>{
       const f=$('#property-form');const fd=new FormData(f);
-      const temp={id:'preview',title:fd.get('title')||'Pré-visualização',description:fd.get('description'),category:fd.get('category'),region:fd.get('region'),price:fd.get('price'),price_display:fd.get('price_display'),entry_price:fd.get('entry_price'),entry_label:fd.get('entry_label'),entry_installments:fd.get('entry_installments'),entry_mode:fd.get('entry_mode'),price_highlight:fd.get('price_highlight'),status:'published',photos:state.pendingPhotos,featured:fd.get('featured')==='on',bedrooms:fd.get('bedrooms'),area:fd.get('area'),features:{items:String(fd.get('features')).split(',').map(value=>value.trim()).filter(Boolean),floor_plans:readFloorPlans()},payment:fd.get('payment')};
+      const temp={id:'preview',title:fd.get('title')||'Pré-visualização',description:fd.get('description'),category:fd.get('category'),region:fd.get('region'),price:fd.get('price'),price_display:fd.get('price_display'),entry_price:fd.get('entry_price'),entry_label:fd.get('entry_label'),entry_installments:fd.get('entry_installments'),entry_mode:fd.get('entry_mode'),price_highlight:fd.get('price_highlight'),price_highlight_label:fd.get('price_highlight_label'),price_secondary_label:fd.get('price_secondary_label'),price_extra_label:fd.get('price_extra_label'),status:'published',photos:state.pendingPhotos,featured:fd.get('featured')==='on',bedrooms:fd.get('bedrooms'),area:fd.get('area'),features:{items:String(fd.get('features')).split(',').map(value=>value.trim()).filter(Boolean),floor_plans:readFloorPlans()},payment:fd.get('payment')};
       state.properties.unshift(temp);openProperty('preview');state.properties.shift();
     };
   }

@@ -301,6 +301,12 @@
                     <label class="highlight-choice"><input type="radio" name="price_highlight" value="auto"><span>Automático</span></label>
                   </div>
                   <p class="field-hint">O valor escolhido aparece grande no card e no anúncio; o outro fica em segundo plano. Em “Automático”, a entrada/sinal tem preferência quando existe.</p>
+                  <div class="custom-labels" id="custom-labels">
+                    <label>Texto do destaque (opcional)<input name="price_highlight_label" maxlength="60" placeholder="Ex.: Sinal de R$ 20 mil"></label>
+                    <label>Texto do valor secundário (opcional)<input name="price_secondary_label" maxlength="60" placeholder="Ex.: Restante da entrada em 40x"></label>
+                    <label>Texto extra (opcional)<input name="price_extra_label" maxlength="60" placeholder="Ex.: Valor total de 299 mil"></label>
+                    <p class="field-hint">Se preencher, este texto substitui o valor automático naquele campo. Deixe em branco para o site montar o valor a partir dos números.</p>
+                  </div>
                 </fieldset>
               </fieldset>
               <div class="form-row">

@@ -519,6 +519,12 @@ button { cursor: pointer; }
 .price-line.price-secondary .price-value { font-size: .82em; font-weight: 500; }
 .price-line.price-secondary .price-kind { color: var(--label); }
 .price-line small { flex-basis: 100%; color: var(--label); font-size: .62em; font-weight: 500; }
+/* Free text typed by the administrator (e.g. "Restante da entrada em 40x"). */
+.price-line.price-extra { color: var(--label-strong); font-size: .86em; }
+.price-line.price-extra .price-value { font-weight: 500; }
+.custom-labels { display: grid; gap: 10px; margin-top: 4px; }
+.custom-labels[hidden] { display: none; }
+.custom-labels input { width: 100%; }
 .property-meta {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   margin: 14px 0 0; padding-top: 14px;
