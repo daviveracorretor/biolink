@@ -6,10 +6,16 @@
   const MAX_PROPERTY_PHOTO_SIZE = 20 * 1024 * 1024;
   const ALLOWED_PROPERTY_PHOTO_TYPES = new Set(['image/jpeg','image/png','image/webp','image/avif','image/heic','image/heif']);
   const ALL_CATEGORIES = '__all__';
+  // One shared media query: the card slideshow now also reacts when the OS setting changes,
+  // instead of being decided once at load time.
+  const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)');
   const CATEGORY_STORAGE_KEY = 'dv-property-category';
   const state = { properties: [], category: ALL_CATEGORIES, gallery: [], galleryIndex: 0, galleryTitle: '', galleryRequestId: 0, pendingPhotos: [], uploadFiles: [], coverPhoto: null, cardSlideshowCleanups: [], refreshPromise: null, user: null };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const hasSupabase = () => Boolean(config.supabase?.url && config.supabase?.anonKey);
+  // The local preview (tools/preview-server.js) ships a tiny REST stand-in so the admin panel can
+  // be exercised without a Supabase account. It only exists on localhost; production never sees it.
+  const LOCAL_PREVIEW = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).has('local');
+  const hasSupabase = () => Boolean(LOCAL_PREVIEW || (config.supabase?.url && config.supabase?.anonKey));
   const wa = (message = 'Olá, Davi! Gostaria de conversar sobre imóveis em Cascavel.') => config.whatsapp ? `https://wa.me/${encodeURIComponent(config.whatsapp)}?text=${encodeURIComponent(message)}` : '#admin';
   const money = n => n ? `A partir de ${Number(n).toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:2 })}` : 'Consulte condições';
   const propertyOrder = (a,b) => Number(Boolean(b.featured))-Number(Boolean(a.featured)) || Number(a.display_order ?? Number.MAX_SAFE_INTEGER)-Number(b.display_order ?? Number.MAX_SAFE_INTEGER) || String(b.created_at||'').localeCompare(String(a.created_at||''));
@@ -64,15 +70,18 @@
 
   function initTheme() {
     const saved = localStorage.getItem('dv-theme');
-    document.documentElement.dataset.theme = saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    // The site ships as a dark, matte interface; a stored preference still wins, and the
+    // toggle keeps working for anyone who prefers a light surface.
+    document.documentElement.dataset.theme = saved || 'dark';
     const button = $('#theme-toggle');
+    // The sun/moon icons are swapped by CSS, so no icon element needs to be replaced here.
     const updateButton = () => {
       const dark = document.documentElement.dataset.theme === 'dark';
-      document.querySelector('meta[name="theme-color"]').content = dark ? '#191C27' : '#F8F9FA';
-      button.setAttribute('aria-label', dark ? 'Ativar tema claro' : 'Ativar tema escuro');
-      button.title = dark ? 'Ativar tema claro' : 'Ativar tema escuro';
-      button.querySelector('span').textContent = dark ? '☀' : '☾';
-      $$('.brand-mark').forEach(mark => { mark.src = dark ? mark.dataset.darkSrc : mark.dataset.lightSrc; });
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.content = dark ? '#121316' : '#f4f5f7';
+      const label = dark ? 'Ativar tema claro' : 'Ativar tema escuro';
+      button.setAttribute('aria-label', label);
+      button.title = label;
     };
     updateButton();
     button.addEventListener('click', () => {
@@ -81,21 +90,64 @@
       updateButton();
     });
   }
+  // Read-only helpers used by tests and by the dev server; they expose pure functions without
+  // leaking any state to the page.
+  window.DaviVeraSite = { propertyOrder, propertyPriceMarkup, canonicalCategory, orderedPropertyPhotos, floorPlanLabel, categoryCodePrefix, categoryKey };
   function setupProfile() {
-    if (config.profileImage) {
-      $('#avatar').innerHTML = `<img src="${esc(config.profileImage)}" alt="Davi Vera">`;
-      $('#avatar img').addEventListener('error', event => event.currentTarget.remove(), { once:true });
+    // The portrait already ships in the markup, so a configured photo only replaces it.
+    // (Rebuilding the button's innerHTML on every load threw away the <img> alt and dimensions.)
+    const avatarImage = $('#avatar img');
+    if (config.profileImage && avatarImage && !avatarImage.src.endsWith(config.profileImage)) {
+      avatarImage.src = config.profileImage;
     }
+    if (avatarImage) avatarImage.addEventListener('error', () => { avatarImage.hidden = true; }, { once:true });
     const insta = $('#instagram-link');
     if (config.instagram) { insta.href = config.instagram; insta.target = '_blank'; insta.rel = 'noopener'; } else insta.hidden = true;
-    ['whatsapp-link','simulate-link','buyer-link','owner-link','about-contact'].forEach(id => {
-      const el = document.getElementById(id);
-      const text = id === 'owner-link' ? 'Olá, Davi! Tenho um imóvel em Cascavel e gostaria de conversar sobre anunciar.' : id === 'simulate-link' ? 'Olá, Davi! Gostaria de fazer uma simulação de crédito imobiliário.' : undefined;
-      el.href = wa(text); if (!config.whatsapp) el.title = 'Configure o WhatsApp em config.js';
+    const messages = {
+      'owner-link': 'Olá, Davi! Tenho um imóvel em Cascavel e gostaria de conversar sobre anunciar.',
+      'simulate-link': 'Olá, Davi! Gostaria de fazer uma simulação de crédito imobiliário.',
+      'simulate-link-secondary': 'Olá, Davi! Gostaria de fazer uma simulação de crédito imobiliário.',
+      'floating-whatsapp': 'Olá, Davi! Vi seu site e gostaria de conversar sobre imóveis em Cascavel.',
+      'whatsapp-card-link': 'Olá, Davi! Gostaria de ver as opções de imóveis disponíveis.',
+    };
+    Object.entries(messages).forEach(([id, text]) => {
+      const element = document.getElementById(id);
+      if (!element) return;
+      element.href = wa(text);
+      if (!config.whatsapp) element.title = 'Configure o WhatsApp em config.js';
     });
-    if (config.spotlight?.visible === false) $('#spotlight').hidden = true;
-    else { $('#spotlight h2').textContent = config.spotlight?.title || $('#spotlight h2').textContent; $('#spotlight .spotlight-description').textContent = config.spotlight?.description || $('#spotlight .spotlight-description').textContent; $('#simulate-link').textContent = config.spotlight?.button || 'Fazer simulação'; }
+    // Every remaining WhatsApp entry point shares the default greeting.
+    ['whatsapp-link','buyer-link','about-contact','empty-state-link'].forEach(id => {
+      const element = document.getElementById(id);
+      if (!element) return;
+      element.href = wa();
+      if (!config.whatsapp) element.title = 'Configure o WhatsApp em config.js';
+    });
+    const spotlight = $('#spotlight');
+    if (config.spotlight?.visible === false) {
+      spotlight?.setAttribute('hidden', '');
+    } else if (spotlight) {
+      const title = $('#credit-title');
+      const description = $('.credit-description', spotlight);
+      const button = $('#simulate-link-secondary');
+      if (config.spotlight?.title && title) title.textContent = config.spotlight.title;
+      if (config.spotlight?.description && description) description.textContent = config.spotlight.description;
+      if (config.spotlight?.button && button) button.textContent = config.spotlight.button;
+    }
     $('#year').textContent = new Date().getFullYear();
+  }
+  // The bento KPI cards read from the same catalog the grid uses, so they can never disagree.
+  function renderHeroStats() {
+    const cells = $$('[data-stat]');
+    if (!cells.length) return;
+    const visible = state.properties.filter(property => ['published', 'reserved', 'sold'].includes(property.status));
+    const regions = new Set(visible.map(property => String(property.region || '').split(/[,·-]/)[0].trim().toLocaleLowerCase('pt-BR')).filter(Boolean));
+    const featured = visible.filter(property => property.featured).length;
+    const values = { total: visible.length, regions: regions.size, featured };
+    cells.forEach(cell => {
+      const value = values[cell.dataset.stat];
+      if (value !== undefined) cell.textContent = String(value).padStart(2, '0');
+    });
   }
   function filteredProperties() {
     return state.properties.filter(p => p.status === 'published' || ['reserved','sold'].includes(p.status))
@@ -109,13 +161,29 @@
       state.category = ALL_CATEGORIES;
       localStorage.setItem(CATEGORY_STORAGE_KEY, state.category);
     }
-    host.hidden = available.length === 0;
-    host.innerHTML = available.length ? [`<button class="category-chip category-chip-all ${state.category === ALL_CATEGORIES ? 'active':''}" type="button" data-category="${ALL_CATEGORIES}" aria-pressed="${state.category === ALL_CATEGORIES}">${state.category === ALL_CATEGORIES ? '<span class="category-check" aria-hidden="true">✓</span>':''}Todos</button>`, ...available.map(c => `<button class="category-chip category-chip-${categoryKey(c).replace(/[^a-z0-9]+/g, '-')} ${state.category === c ? 'active':''}" type="button" data-category="${esc(c)}" aria-pressed="${state.category === c}">${state.category === c ? '<span class="category-check" aria-hidden="true">✓</span>':''}${esc(c)}</button>`)].join('') : '';
-    host.onclick = e => { const b = e.target.closest('[data-category]'); if (b) { state.category = b.dataset.category; localStorage.setItem(CATEGORY_STORAGE_KEY, state.category); renderCategories(); renderProperties(); } };
+    const chip = (value, label, extraClass = '') => {
+      const active = state.category === value;
+      return `<button class="category-chip ${extraClass} ${active ? 'active' : ''}" type="button" data-category="${esc(value)}" aria-pressed="${active}">${active ? '<span class="category-check" aria-hidden="true">✓</span>' : ''}${esc(label)}</button>`;
+    };
+    host.innerHTML = [chip(ALL_CATEGORIES, 'Todos', 'category-chip-all'), ...available.map(c => chip(c, c, `category-chip-${categoryKey(c).replace(/[^a-z0-9]+/g, '-')}`))].join('');
+    host.onclick = e => {
+      const button = e.target.closest('[data-category]');
+      if (!button) return;
+      const next = button.dataset.category;
+      if (next === state.category) return;
+      state.category = next;
+      localStorage.setItem(CATEGORY_STORAGE_KEY, next);
+      renderCategories();
+      renderProperties();
+    };
+    // The Cohapar explanation is already presented in the credit section, so the filter bar only
+    // shows a short reminder instead of a second, identical call to action.
     const info = $('#category-info');
     if (info) {
       info.hidden = state.category !== 'Cohapar';
-      info.innerHTML = state.category === 'Cohapar' ? '<button class="cohapar-info-trigger" type="button" aria-haspopup="dialog" aria-controls="cohapar-info-modal"><span class="cohapar-info-icon" aria-hidden="true">i</span><span><strong>Conheça o Cohapar</strong><small>Entenda como funciona e veja o que é necessário.</small></span><span class="cohapar-info-arrow" aria-hidden="true">↗</span></button>' : '';
+      info.innerHTML = state.category === 'Cohapar'
+        ? '<p class="category-note"><strong>Imóveis com subsídio</strong> Estes imóveis fazem parte do programa Casa Fácil Paraná. Veja os requisitos na seção de crédito.</p>'
+        : '';
     }
     const select = $('#property-form select[name="category"]'); if (select) select.innerHTML = (config.categories || []).map(c => `<option>${esc(c)}</option>`).join('');
   }
@@ -129,32 +197,41 @@
       : prefix ? `Formato do código: ${prefix}-001, ${prefix}-002… O número é atribuído ao salvar.` : 'Escolha uma categoria para ver o formato do código.';
   }
   function renderProperties() {
+    renderHeroStats();
+    // Cards are rebuilt on every filter change; restart the staggered entrance for the new set.
+    setTimeout(initStagger, 0);
     state.cardSlideshowCleanups.forEach(cleanup => cleanup());
     state.cardSlideshowCleanups = [];
     const list = filteredProperties().sort(propertyOrder); const grid = $('#property-grid');
     $('#listing-count').textContent = `${list.length} ${list.length === 1 ? 'imóvel' : 'imóveis'}`;
     $('#empty-state').hidden = list.length > 0; grid.innerHTML = list.map(p => {
       const photos = orderedPropertyPhotos(p).filter(photo => photo?.url);
-      const initialIndex = 0;
       const cover = photos[0]?.url || p.cover_url || '';
       const tags = [p.featured ? '<span class="badge">DESTAQUE</span>':'', p.status === 'reserved' ? '<span class="badge status">RESERVADO</span>':'', p.status === 'sold' ? '<span class="badge status">VENDIDO</span>':''].join('');
       const category = canonicalCategory(p.category) || 'Imóvel';
       const categoryClass = `category-${categoryKey(category).replace(/[^a-z0-9]+/g, '-')}`;
-      const facts = [p.bedrooms ? `${esc(p.bedrooms)} quartos`:'', p.area ? `${decimal(p.area)} m²`:'', p.parking ? `${esc(p.parking)} vagas`:'' ].filter(Boolean).join(' · ');
-      const morePhotos = photos.length > 1 ? `<button type="button" class="card-more-photos" aria-label="Ver todas as ${photos.length} fotos de ${esc(p.title)}">Ver mais fotos <span aria-hidden="true">↗</span></button>` : '';
-      return `<article class="property-card" tabindex="0" role="button" data-id="${esc(p.id)}"><div class="property-image">${cover ? `<img src="${esc(cover)}" alt="${esc(p.title)}" data-photo-index="${initialIndex}" loading="lazy">`:''}<div class="property-badges">${tags}</div><span class="property-category-badge ${categoryClass}">${esc(category)}</span>${morePhotos}</div><div class="property-copy"><h3>${esc(p.title)}</h3><p class="property-region">${esc(p.region || 'Cascavel, PR')}</p>${propertyPriceMarkup(p,'property-price')}${facts ? `<p class="property-meta">${facts}</p>`:''}</div></article>`;
+      const facts = [p.bedrooms ? `${esc(p.bedrooms)} ${p.bedrooms === 1 ? 'quarto' : 'quartos'}`:'', p.area ? `${decimal(p.area)} m²`:'', p.parking ? `${esc(p.parking)} ${p.parking === 1 ? 'vaga' : 'vagas'}`:''].filter(Boolean).map(fact => `<span>${fact}</span>`).join('');
+      const morePhotos = photos.length > 1 ? `<span class="card-more-photos" aria-hidden="true">${photos.length} fotos</span>` : '';
+      return `<article class="property-card" tabindex="0" role="button" aria-label="${esc(p.title)} — ver detalhes" data-id="${esc(p.id)}"><div class="property-image">${cover ? `<img src="${esc(cover)}" alt="${esc(p.title)}" data-photo-index="0" loading="lazy">`:''}<div class="property-badges">${tags}</div><span class="property-category-badge ${categoryClass}">${esc(category)}</span>${morePhotos}</div><div class="property-copy"><h3>${esc(p.title)}</h3><p class="property-region">${esc(p.region || 'Cascavel, PR')}</p>${propertyPriceMarkup(p,'property-price')}${facts ? `<p class="property-meta">${facts}</p>`:''}</div></article>`;
     }).join('');
-    $$('.property-card', grid).forEach(card => { card.onclick = () => openProperty(card.dataset.id); card.onkeydown = e => { if (e.target.closest('.card-more-photos')) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProperty(card.dataset.id); } }; });
-    $$('.card-more-photos', grid).forEach(button => button.onclick = event => { event.preventDefault(); event.stopPropagation(); openProperty(button.closest('.property-card').dataset.id); });
+    // A click anywhere on the card opens it. The photo counter is decorative (aria-hidden), so the
+    // whole card is the only control: no nested button, no duplicated dialog on Enter.
+    $$('.property-card', grid).forEach(card => {
+      card.onclick = () => openProperty(card.dataset.id);
+      card.onkeydown = event => {
+        if (event.target !== card) return;
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openProperty(card.dataset.id); }
+      };
+    });
     $$('.property-card', grid).forEach(card => {
       const property = state.properties.find(item => String(item.id) === card.dataset.id);
+      // The slideshow is only armed when the visitor has not asked for reduced motion.
       const photos = orderedPropertyPhotos(property).filter(photo => photo?.url).slice(0, 5);
       const image = $('.property-image img', card);
-      if (!image || photos.length < 2) return;
+      if (!image || photos.length < 2 || REDUCED_MOTION.matches) return;
       let inView = false;
       let timer = null;
       let loadingNext = false;
-      const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
       const schedule = (delay = 3000) => {
         if (timer !== null || !inView || document.hidden) return;
         timer = setTimeout(() => { timer = null; advance(); }, delay);
@@ -178,7 +255,7 @@
           image.src = photos[index].url;
           image.alt = `${property.title} — foto ${index + 1}`;
           image.dataset.photoIndex = String(index);
-          if (!reducedMotion) image.classList.add('card-photo-enter');
+          image.classList.add('card-photo-enter');
           schedule(3000);
         };
         nextImage.onload = showNext;
@@ -213,10 +290,10 @@
     });
   }
   async function track(id) { if (!config.analyticsEndpoint) return; try { await fetchWithTimeout(config.analyticsEndpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({event:'property_view', property_id:id, timestamp:new Date().toISOString()}) },8000); } catch {} }
-  function modalPhotoMarkup(p) {
+  function modalPhotoMarkup(p, allowReorder = false) {
     const photos = orderedPropertyPhotos(p).filter(photo => photo?.url);
     if (!photos.length && p.cover_url) return `<div class="modal-photo-item"><img src="${esc(p.cover_url)}" alt="${esc(p.title)} — foto 1" data-photo-index="0" loading="lazy"></div>`;
-    return photos.map((photo,i) => `<div class="modal-photo-item" data-photo-sort-item="${i}"><img src="${esc(photo.url)}" alt="${esc(p.title)} — foto ${i+1}" data-photo-index="${i}" loading="lazy">${state.user && String(p.id) !== 'preview' && photos.length > 1 ? `<div class="modal-photo-order"><button type="button" class="photo-drag-handle" data-photo-drag="${i}" aria-label="Arrastar foto ${i+1} para reordenar" title="Arraste para mudar a ordem"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg></button><button type="button" data-modal-photo-move="${i}" data-move-to="${i-1}" ${i===0?'disabled':''} aria-label="Mover foto ${i+1} para antes">↑</button><button type="button" data-modal-photo-move="${i}" data-move-to="${i+1}" ${i===photos.length-1?'disabled':''} aria-label="Mover foto ${i+1} para depois">↓</button></div>`:''}</div>`).join('');
+    return photos.map((photo,i) => `<div class="modal-photo-item" data-photo-sort-item="${i}"><img src="${esc(photo.url)}" alt="${esc(p.title)} — foto ${i+1}" data-photo-index="${i}" loading="lazy">${allowReorder ? `<div class="modal-photo-order"><button type="button" class="photo-drag-handle" data-photo-drag="${i}" aria-label="Arrastar foto ${i+1} para reordenar" title="Arraste para mudar a ordem"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg></button><button type="button" data-modal-photo-move="${i}" data-move-to="${i-1}" ${i===0?'disabled':''} aria-label="Mover foto ${i+1} para antes">↑</button><button type="button" data-modal-photo-move="${i}" data-move-to="${i+1}" ${i===photos.length-1?'disabled':''} aria-label="Mover foto ${i+1} para depois">↓</button></div>`:''}</div>`).join('');
   }
   function enablePhotoDragging(container, itemSelector, onDrop) {
     if (!container) return;
@@ -315,17 +392,42 @@
     const photos = propertyPhotos.map(x => x.url).filter(Boolean);
     if (!photos.length && p.cover_url) photos.push(p.cover_url);
     state.gallery = photos; state.galleryIndex = 0; state.galleryTitle = p.title; state.galleryRequestId++;
-    const facts = [['Área',p.area && `${decimal(p.area)} m²`],['Quartos',p.bedrooms],['Suítes',p.suites],['Banheiros',p.bathrooms],['Vagas',p.parking]].filter(x=>x[1]);
+    const plural = (value, one, many) => `${value} ${Number(value) === 1 ? one : many}`;
+    const facts = [['Área', p.area && `${decimal(p.area)} m²`], ['Quartos', p.bedrooms && plural(p.bedrooms, 'quarto', 'quartos')], ['Suítes', p.suites && plural(p.suites, 'suíte', 'suítes')], ['Banheiros', p.bathrooms && plural(p.bathrooms, 'banheiro', 'banheiros')], ['Vagas', p.parking && plural(p.parking, 'vaga', 'vagas')]].filter(([, value]) => value);
     const features = propertyFeatures(p); const floorPlans = propertyFloorPlans(p);
-    const url = new URL(location.href); url.hash = `imovel-${encodeURIComponent(p.id)}`;
+    // Preview listings have no id in the database: the address bar must not point at them.
+    const isPreview = String(p.id) === 'preview';
+    const url = new URL(location.href);
+    if (!isPreview) url.hash = `imovel-${encodeURIComponent(p.id)}`;
     const contact = wa(`Olá, Davi! Tenho interesse no imóvel ${p.title}${p.code ? ` (código ${p.code})`:''}.`);
-    $('#modal-content').innerHTML = `<div class="modal-gallery">${modalPhotoMarkup(p)}</div>${state.user && String(p.id) !== 'preview' && p.photos?.length > 1 ? '<p class="photo-order-hint">Administrador: arraste a alça ⠿ para reordenar. A primeira foto será a capa; a ordem é salva automaticamente.</p>':''}<div class="modal-copy"><p class="eyebrow">${esc(canonicalCategory(p.category))} · ${esc(p.region || 'Cascavel, PR')}</p><h2>${esc(p.title)}</h2>${propertyPriceMarkup(p,'modal-price')}${p.code ? `<p>Código do anúncio: ${esc(p.code)}</p>`:''}<div class="modal-facts">${facts.map(x=>`<span>${esc(x[0])}: ${esc(x[1])}</span>`).join('')}</div><p>${esc(p.description || '')}</p>${features.length ? `<h3>Diferenciais</h3><p>${esc(features.join(' · '))}</p>`:''}${floorPlans.length ? `<h3>Plantas disponíveis</h3><ul class="modal-floor-plans">${floorPlans.map(floorPlanLabel).filter(Boolean).map(plan=>`<li>${esc(plan)}</li>`).join('')}</ul>`:''}${p.payment ? `<h3>Condições de pagamento</h3><p>${esc(p.payment)}</p>`:''}<div class="share-actions"><a class="button button-primary" href="${esc(contact)}" ${config.whatsapp?'target="_blank" rel="noopener"':''}>Falar sobre este imóvel ↗</a><button class="button button-secondary" id="copy-property-link">Copiar link</button><button class="button button-secondary" id="share-property">Compartilhar</button></div></div>`;
-    $$('.modal-gallery img').forEach(img => img.onclick = () => showLarge(Number(img.dataset.photoIndex)));
+    // The photo reorder handles are only rendered for the signed-in administrator; visitors never
+    // see them, so the hint that explains them is only shown in that same case.
+    // Reorder controls belong to the administrator only: visitors get a plain, scrollable gallery.
+    const canReorder = Boolean(state.user) && String(p.id) !== 'preview' && (p.photos?.length || 0) > 1;
+    $('#modal-content').innerHTML = `<div class="modal-gallery">${modalPhotoMarkup(p, canReorder)}</div>${canReorder ? '<p class="photo-order-hint">Administrador: arraste a alça ⠿ para reordenar. A primeira foto é a capa e a ordem é salva automaticamente.</p>':''}<div class="modal-copy"><p class="eyebrow">${esc(canonicalCategory(p.category))} · ${esc(p.region || 'Cascavel, PR')}</p><h2>${esc(p.title)}</h2>${propertyPriceMarkup(p,'modal-price')}${p.code ? `<p>Código do anúncio: ${esc(p.code)}</p>`:''}<div class="modal-facts">${facts.map(([label, value]) => `<span><small>${esc(label)}</small>${esc(value)}</span>`).join('')}</div><p>${esc(p.description || '')}</p>${features.length ? `<h3>Diferenciais</h3><ul class="modal-features">${features.map(feature => `<li>${esc(feature)}</li>`).join('')}</ul>`:''}${floorPlans.length ? `<h3>Plantas disponíveis</h3><ul class="modal-floor-plans">${floorPlans.map(floorPlanLabel).filter(Boolean).map(plan=>`<li>${esc(plan)}</li>`).join('')}</ul>`:''}${p.payment ? `<h3>Condições de pagamento</h3><p>${esc(p.payment)}</p>`:''}<div class="share-actions"><a class="button button-primary" href="${esc(contact)}" ${config.whatsapp?'target="_blank" rel="noopener"':''}>Falar sobre este imóvel ↗</a><button class="button button-secondary" id="copy-property-link">Copiar link</button><button class="button button-secondary" id="share-property">Compartilhar</button></div></div>`;
+    $$('.modal-gallery img').forEach(img => img.onclick = () => showLarge(Number(img.dataset.photoIndex || 0)));
     $$('[data-modal-photo-move]').forEach(button => button.onclick = () => movePropertyPhoto(p, Number(button.dataset.modalPhotoMove), Number(button.dataset.moveTo)));
-    if (state.user && String(p.id) !== 'preview') enablePhotoDragging($('.modal-gallery'), '.modal-photo-item', (from,to) => movePropertyPhoto(p,from,to));
-    $('#copy-property-link').onclick = async () => { await navigator.clipboard.writeText(url.href); $('#copy-property-link').textContent = 'Link copiado'; };
-    $('#share-property').onclick = async () => { if (navigator.share) await navigator.share({title:p.title,url:url.href}); else { await navigator.clipboard.writeText(url.href); $('#share-property').textContent = 'Link copiado'; } };
-    if (!$('#property-modal').open) $('#property-modal').showModal(); history.replaceState(null,'',url); track(p.id);
+    if (canReorder) enablePhotoDragging($('.modal-gallery'), '.modal-photo-item', (from,to) => movePropertyPhoto(p,from,to));
+    const copyLink = async (button, label = 'Link copiado') => {
+      const shareUrl = isPreview ? location.href : url.href;
+      try {
+        if (!navigator.clipboard?.writeText) throw new Error('clipboard indisponível');
+        await navigator.clipboard.writeText(shareUrl);
+        button.textContent = label;
+      } catch {
+        button.textContent = 'Copie o link da barra de endereço';
+      }
+    };
+    $('#copy-property-link').onclick = () => copyLink($('#copy-property-link'));
+    $('#share-property').onclick = async () => {
+      if (!navigator.share) { await copyLink($('#share-property')); return; }
+      try { await navigator.share({title:p.title,url:url.href}); }
+      catch (error) { if (error?.name !== 'AbortError') await copyLink($('#share-property')); }
+    };
+    $('#property-modal').setAttribute('aria-label', p.title || 'Detalhes do imóvel');
+    if (!$('#property-modal').open) $('#property-modal').showModal();
+    history.replaceState(null,'',url);
+    if (!isPreview) track(p.id);
   }
   function showLarge(index) {
     if (!state.gallery.length) return;
@@ -335,8 +437,7 @@
     const dialog = $('#image-modal');
     const requestId = ++state.galleryRequestId;
     $('#gallery-count').textContent = `${state.galleryIndex + 1} / ${state.gallery.length}`;
-    $('.gallery-prev').hidden = state.gallery.length < 2;
-    $('.gallery-next').hidden = state.gallery.length < 2;
+    $$('.gallery-arrow').forEach(arrow => { arrow.hidden = state.gallery.length < 2; });
     if (!dialog.open) dialog.showModal();
 
     let committed = false;
@@ -422,18 +523,57 @@
     try { return JSON.parse(body); }
     catch { throw new Error('Supabase retornou uma resposta inválida ao salvar o imóvel.'); }
   }
-  function setAdminStatus(text, error=false) { const e=$('#admin-status'); e.textContent=text; e.style.color=error?'#b2483c':''; }
+  function setAdminStatus(text, error=false) {
+    const element = $('#admin-status');
+    if (!element) return;
+    element.textContent = text;
+    // The colour comes from the design tokens instead of a hard-coded hex, so it also works in dark mode.
+    element.classList.toggle('is-error', Boolean(error));
+    if (error) element.setAttribute('role', 'alert'); else element.removeAttribute('role');
+  }
   function mediaUrl(path) { return `${config.supabase.url.replace(/\/$/,'')}/storage/v1/object/public/${config.supabase.bucket}/${path}`; }
   async function loadCatalog() {
+    if (LOCAL_PREVIEW) {
+      try {
+        const response = await fetch('/preview-api/properties', { cache: 'no-store' });
+        if (!response.ok) throw new Error(`o servidor de pré-visualização respondeu ${response.status}. Rode "node tools/preview-server.js" e abra o endereço que ele indicar.`);
+        state.properties = await response.json();
+        setAdminStatus('Pré-visualização local: os dados são fictícios e ficam na memória do servidor de desenvolvimento.');
+      } catch (error) {
+        state.properties = [];
+        setAdminStatus(`Pré-visualização local indisponível: ${error.message}`, true);
+      }
+      renderCategories(); renderProperties(); renderAdmin();
+      return;
+    }
     if (!hasSupabase()) { state.properties=[]; renderCategories(); renderProperties(); setAdminStatus('O catálogo ainda não está conectado. Para publicar imóveis, configure o Supabase, o ID da sua conta administradora e as políticas de acesso descritas no README.'); return; }
     try { state.properties=await api(`${encodeURIComponent(config.supabase.table)}?select=*&order=created_at.desc`) || []; setAdminStatus(state.user ? `Conectado como ${state.user.email}.` : 'Catálogo conectado. Entre como administrador para gerenciar anúncios.'); }
     catch(e) { state.properties=[]; setAdminStatus(`Não foi possível carregar o catálogo. Confira tabela, políticas de leitura e conexão. ${e.message}`,true); }
     renderCategories(); renderProperties(); renderAdmin();
   }
-  function login() { const dialog=$('#admin-login-dialog'); $('#admin-login-error').textContent=''; dialog.showModal(); $('#admin-login-form').elements.email.focus(); }
-  async function submitAdminLogin(event) { event.preventDefault(); const form=event.currentTarget; const email=form.elements.email.value.trim(); const password=form.elements.password.value; const error=$('#admin-login-error'); const submit=form.querySelector('[type="submit"]'); error.textContent='Verificando acesso…'; submit.disabled=true; try { const r=await fetchWithTimeout(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:config.supabase.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email,password})},30000); if(!r.ok)throw Error('Credenciais inválidas ou serviço indisponível.'); const session=await r.json(); if(!config.supabase.adminUserId || session.user?.id?.toLowerCase()!==config.supabase.adminUserId.toLowerCase()){await fetchWithTimeout(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${session.access_token}`}},10000).catch(()=>{});throw Error('Esta conta não está autorizada a administrar o site.');} session.expires_at=session.expires_at || Math.floor(Date.now()/1000)+Number(session.expires_in||3600); state.user=session; form.reset(); $('#admin-login-dialog').close(); $('#admin-login').hidden=true; $('#admin-logout').hidden=false; $('#property-form').hidden=false; await loadCatalog(); }catch(e){error.textContent=e.message;}finally{form.elements.password.value='';submit.disabled=false;} }
+  function login() {
+    const dialog = $('#admin-login-dialog');
+    const form = $('#admin-login-form');
+    // Enter on the "Entrar" button fired submit twice and asked Supabase for two tokens.
+    if (!form.dataset.bound) {
+      form.addEventListener('submit', submitAdminLogin);
+      form.dataset.bound = 'true';
+    }
+    $('#admin-login-error').textContent = '';
+    dialog.showModal();
+    form.elements.email.focus();
+  }
+  async function submitAdminLogin(event) { event.preventDefault(); if (event.currentTarget.dataset.submitting === 'true') return; const form=event.currentTarget; form.dataset.submitting='true'; const email=form.elements.email.value.trim(); const password=form.elements.password.value; const error=$('#admin-login-error'); const submit=form.querySelector('[type="submit"]'); error.textContent='Verificando acesso…'; submit.disabled=true; try { const r=await fetchWithTimeout(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:config.supabase.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email,password})},30000); if(!r.ok)throw Error('Credenciais inválidas ou serviço indisponível.'); const session=await r.json(); if(!config.supabase.adminUserId || session.user?.id?.toLowerCase()!==config.supabase.adminUserId.toLowerCase()){await fetchWithTimeout(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${session.access_token}`}},10000).catch(()=>{});throw Error('Esta conta não está autorizada a administrar o site.');} session.expires_at=session.expires_at || Math.floor(Date.now()/1000)+Number(session.expires_in||3600); state.user=session; form.reset(); $('#admin-login-dialog').close(); $('#admin-login').hidden=true; $('#admin-logout').hidden=false; $('#property-form').hidden=false; await loadCatalog(); }catch(e){error.textContent=e.message;}finally{form.elements.password.value='';submit.disabled=false;form.dataset.submitting='false';} }
+  // Property statuses are stored in English in Supabase; the admin list shows them in Portuguese.
+  const STATUS_LABELS = { draft: 'Rascunho', published: 'Publicado', reserved: 'Reservado', sold: 'Vendido' };
+  function statusLabel(status) { return STATUS_LABELS[status] || status || ''; }
+
   function renderAdmin() {
-    $('#admin-login').hidden=!hasSupabase()||!config.supabase.adminUserId||!!state.user; $('#admin-logout').hidden=!state.user; $('#property-form').hidden=!state.user;
+    // In the local preview the admin session is simulated so the panel can be reviewed offline.
+    if (LOCAL_PREVIEW) state.user = { local: true, email: 'preview@local' };
+    $('#admin-login').hidden = LOCAL_PREVIEW || !hasSupabase() || !config.supabase.adminUserId || !!state.user;
+    $('#admin-logout').hidden = !state.user;
+    $('#property-form').hidden = !state.user;
     const tools = $('#admin-property-tools');
     tools.hidden = !state.user;
     const categoryFilter = $('#admin-category-filter');
@@ -444,7 +584,7 @@
     const matches = state.properties.filter(p => (!query || `${p.title||''} ${p.code||''}`.toLocaleLowerCase('pt-BR').includes(query)) && (!selectedCategory || canonicalCategory(p.category) === selectedCategory) && (!selectedStatus || p.status === selectedStatus)).sort(propertyOrder);
     const filtered = Boolean(query || selectedCategory || selectedStatus);
     $('#admin-order-hint').textContent = filtered ? 'Limpe a busca e os filtros para reordenar a lista completa.' : matches.length > 1 ? 'Arraste pelo ícone para organizar. Os imóveis em destaque continuam no topo.' : '';
-    $('#admin-list').innerHTML=state.user?(matches.length?matches.map((p,index)=>`<div class="admin-row" data-property-sort-item="${index}" data-featured="${Boolean(p.featured)}"><button class="property-drag-handle" type="button" data-property-drag="${esc(p.id)}" aria-label="Arrastar ${esc(p.title)} para reordenar" title="Arraste para organizar" ${filtered || matches.length<2 || state.orderSaving?'hidden':''}>⠿</button><div class="admin-row-main"><strong>${esc(p.title)}</strong><span>${esc(canonicalCategory(p.category)||'Imóvel')} · ${esc(p.status)} · ${esc(p.code||'Sem código')}</span></div><span class="admin-row-actions"><button class="text-button" data-copy-code="${esc(p.id)}">Copiar código</button><button class="text-button" data-edit="${esc(p.id)}">Editar</button><button class="text-button" data-delete="${esc(p.id)}">Excluir</button></span></div>`).join(''):'<p class="admin-list-empty">Nenhum imóvel corresponde a essa busca.</p>'):'';
+    $('#admin-list').innerHTML=state.user?(matches.length?matches.map((p,index)=>`<div class="admin-row" data-property-sort-item="${index}" data-featured="${Boolean(p.featured)}"><button class="property-drag-handle" type="button" data-property-drag="${esc(p.id)}" aria-label="Arrastar ${esc(p.title)} para reordenar" title="Arraste para organizar" ${filtered || matches.length<2 || state.orderSaving?'hidden':''}>⠿</button><div class="admin-row-main"><strong>${esc(p.title)}</strong><span>${esc(canonicalCategory(p.category)||'Imóvel')} · ${esc(statusLabel(p.status))} · ${esc(p.code||'Sem código')}</span></div><span class="admin-row-actions"><button class="text-button" data-copy-code="${esc(p.id)}">Copiar código</button><button class="text-button" data-edit="${esc(p.id)}">Editar</button><button class="text-button" data-delete="${esc(p.id)}">Excluir</button></span></div>`).join(''):'<p class="admin-list-empty">Nenhum imóvel corresponde a essa busca.</p>'):'';
     $$('[data-copy-code]').forEach(b=>b.onclick=async()=>{const p=state.properties.find(item=>String(item.id)===b.dataset.copyCode);if(!p?.code){setAdminStatus('Este imóvel ainda não tem código.',true);return;}try{await navigator.clipboard.writeText(p.code);setAdminStatus(`Código ${p.code} copiado.`);}catch{setAdminStatus('Não foi possível copiar o código neste navegador.',true);}});
     $$('[data-edit]').forEach(b=>b.onclick=()=>fillForm(state.properties.find(p=>String(p.id)===b.dataset.edit)));
     $$('[data-delete]').forEach(b=>b.onclick=async()=>{const p=state.properties.find(x=>String(x.id)===b.dataset.delete);if(!confirm(`Excluir “${p.title}”? Esta ação não pode ser desfeita.`))return;try{await api(`${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(p.id)}`,{method:'DELETE'});await loadCatalog();}catch(e){setAdminStatus(`Falha ao excluir: ${e.message}`,true);}});
@@ -588,6 +728,7 @@
     event.preventDefault();
     const form = event.currentTarget;
     const submit = form.querySelector('button[type="submit"]');
+    const submitLabel = submit.textContent;
     const formData = new FormData(form);
     const id = formData.get('id') || crypto.randomUUID();
     submit.disabled = true;
@@ -609,6 +750,14 @@
       const savePath = formData.get('id')
         ? `${encodeURIComponent(config.supabase.table)}?id=eq.${encodeURIComponent(id)}`
         : encodeURIComponent(config.supabase.table);
+      if (LOCAL_PREVIEW) {
+        const response = await fetch('/preview-api/properties', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...payload }) });
+        state.properties = await response.json();
+        form.reset(); clearPendingPhotos(); setPropertyFormMode(false); renderPhotoPreview();
+        renderCategories(); renderProperties(); renderAdmin();
+        setAdminStatus(`“${payload.title}” salvo na pré-visualização local.`);
+        return;
+      }
       const saveOptions = formData.get('id')
         ? {method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(payload)}
         : {method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({id,...payload})};
@@ -620,12 +769,15 @@
       form.reset(); clearPendingPhotos(); setPropertyFormMode(false); renderPhotoPreview();
       renderCategories(); renderProperties(); renderAdmin();
       const savedCode = savedProperty?.code || payload.code;
-      setAdminStatus(`“${payload.title}” salvo como ${payload.status}.${savedCode ? ` Código ${savedCode}.` : ' O código será exibido na lista após a próxima atualização.'}`);
+      setAdminStatus(`“${payload.title}” salvo como ${statusLabel(payload.status).toLowerCase()}.${savedCode ? ` Código ${savedCode}.` : ' O código será exibido na lista após a próxima atualização.'}`);
     } catch (error) {
       setAdminStatus(`Não foi possível salvar o imóvel. ${error.message}`, true);
     } finally {
       submit.disabled = false;
-      submit.textContent = form.elements.id.value ? 'Salvar alterações' : 'Salvar imóvel';
+      // Restore what the button said when it was pressed: editing says "Salvar alterações",
+      // creating says "Salvar imóvel". Reading form.elements.id here was wrong because the form is
+      // reset after a successful save, which made the button say "Salvar imóvel" while editing.
+      submit.textContent = submitLabel;
     }
   }
   function clearPendingPhotos() {
@@ -681,10 +833,11 @@
   }
   function setupAdmin() {
     $('#admin-login').onclick=login;
-    $('#admin-login-form').addEventListener('submit',submitAdminLogin);
+    // The submit handler is attached once, in login(), so a second click cannot double-bind it.
     $('#admin-login-cancel').onclick=()=>$('#admin-login-dialog').close();
     $('#admin-login-dialog').addEventListener('close',()=>{const form=$('#admin-login-form');if(!state.user)form.reset();});
     $('#admin-logout').onclick=async()=>{
+      if (LOCAL_PREVIEW) { state.user=null; $('#property-form').hidden=true; await loadCatalog(); return; }
       try{await fetchWithTimeout(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${state.user.access_token}`}},10000);}catch{}
       state.user=null;$('#property-form').reset();clearPendingPhotos();setPropertyFormMode(false);$('#property-form').hidden=true;await loadCatalog();
     };
@@ -720,14 +873,94 @@
       state.properties.unshift(temp);openProperty('preview');state.properties.shift();
     };
   }
+  // Highlights the navigation item of the section in view, mirroring the active item of a sidebar.
+  function initActiveNav() {
+    const links = $$('#primary-nav a');
+    if (!links.length || !('IntersectionObserver' in window)) return;
+    const sections = links
+      .map(link => document.querySelector(link.getAttribute('href')))
+      .filter(Boolean);
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const id = entry.target.id;
+        links.forEach(link => {
+          const active = link.getAttribute('href') === `#${id}`;
+          link.classList.toggle('is-active', active);
+          if (active) link.setAttribute('aria-current', 'true'); else link.removeAttribute('aria-current');
+        });
+      });
+    }, { rootMargin: '-45% 0px -50% 0px', threshold: 0 });
+    sections.forEach(section => observer.observe(section));
+  }
+
+  // Staggered entrance for bento cards: translateY(18px) -> 0, scale .985 -> 1, opacity 0 -> 1.
+  function initStagger() {
+    if (REDUCED_MOTION.matches) return;
+    const groups = [
+      $$('.hero-grid > *'),
+      $$('.property-grid > *'),
+      $$('.credit-grid > *'),
+      $$('.about-grid > *'),
+      $$('.contact-grid > *'),
+    ];
+    groups.forEach(nodes => nodes.forEach((node, index) => {
+      node.style.setProperty('--stagger', `${Math.min(index, 8) * 70}ms`);
+      node.classList.add('stagger');
+    }));
+  }
+
+  // A compact sticky header after the hero, plus a subtle reveal for sections entering the viewport.
+  function initChrome() {
+    const header = $('#site-header');
+    const onScroll = () => header?.classList.toggle('is-compact', window.scrollY > 24);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    const targets = $$('.section-head, .property-grid, .credit-grid, .about-grid, .contact-grid');
+    if (!('IntersectionObserver' in window) || REDUCED_MOTION.matches) {
+      targets.forEach(target => target.classList.add('is-visible'));
+      return;
+    }
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('is-visible');
+        observer.unobserve(entry.target);
+      });
+    }, { rootMargin: '0px 0px -12% 0px', threshold: 0.08 });
+    targets.forEach(target => { target.classList.add('reveal'); observer.observe(target); });
+  }
   function init() {
+    // The page is a static shell that keeps working without config.js; every lookup below is
+    // guarded so a missing element (or a stale cached HTML) cannot abort the whole script.
     const savedCategory = localStorage.getItem(CATEGORY_STORAGE_KEY);
     if (savedCategory === ALL_CATEGORIES) state.category = ALL_CATEGORIES;
     else if (savedCategory && (config.categories || []).some(category => canonicalCategory(savedCategory) === category)) state.category = canonicalCategory(savedCategory);
     initTheme();setupProfile();renderCategories();setupPasswordRecovery();
-    $$('.modal-close').forEach(b=>b.onclick=()=>b.closest('dialog').close());[$('#property-modal'),$('#image-modal'),$('#about-modal'),$('#cohapar-info-modal')].forEach(d=>d.addEventListener('click',e=>{if(e.target===d)d.close();}));$('#avatar').addEventListener('click',()=>$('#about-modal').showModal());$('#category-info').addEventListener('click',e=>{if(e.target.closest('.cohapar-info-trigger'))$('#cohapar-info-modal').showModal();});$('#property-modal').addEventListener('close',()=>{if(location.hash.startsWith('#imovel-'))history.replaceState(null,'',location.pathname+location.search);});
-    $('.gallery-prev').onclick=()=>showLarge(state.galleryIndex-1);$('.gallery-next').onclick=()=>showLarge(state.galleryIndex+1);document.addEventListener('keydown',e=>{if(e.key==='Escape')return;if($('#image-modal').open&&e.key==='ArrowLeft')showLarge(state.galleryIndex-1);if($('#image-modal').open&&e.key==='ArrowRight')showLarge(state.galleryIndex+1);});
-    setupAdmin();loadCatalog().then(()=>{if(location.hash.startsWith('#imovel-'))openProperty(decodeURIComponent(location.hash.slice(8)));});
+    $$('.modal-close').forEach(b=>b.onclick=()=>b.closest('dialog').close());
+    $$('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d)d.close();}));
+    // The portrait in the "Sobre" section and the floating WhatsApp button are plain links now;
+    // only the dialogs that still exist are wired here.
+    // The Cohapar explanation can be opened from the credit section and from the category info bar.
+    document.addEventListener('click',e=>{if(e.target.closest('.cohapar-info-trigger'))$('#cohapar-info-modal').showModal();});
+    $('#property-modal')?.addEventListener('close',()=>{if(location.hash.startsWith('#imovel-'))history.replaceState(null,'',location.pathname+location.search);});
+    $('.gallery-prev')?.addEventListener('click',()=>showLarge(state.galleryIndex-1));
+    $('.gallery-next')?.addEventListener('click',()=>showLarge(state.galleryIndex+1));
+    document.addEventListener('keydown',e=>{
+      if(e.key==='Escape')return;
+      const viewer=$('#image-modal');
+      if(!viewer?.open)return;
+      if(e.key==='ArrowLeft')showLarge(state.galleryIndex-1);
+      if(e.key==='ArrowRight')showLarge(state.galleryIndex+1);
+    });
+    setupAdmin();
+    initChrome();
+    initActiveNav();
+    loadCatalog().then(()=>{
+      if(!location.hash.startsWith('#imovel-'))return;
+      // openProperty resolves the id itself; decoding it here double-decoded ids with %.
+      openProperty(location.hash.slice(8));
+    });
   }
   init();
 })();

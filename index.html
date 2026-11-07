@@ -3,82 +3,405 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#F8F9FA">
+  <meta name="theme-color" content="#121316">
   <meta name="referrer" content="no-referrer">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://api.fontshare.com https://fonts.googleapis.com; font-src 'self' https://api.fontshare.com https://*.fontshare.com https://fonts.gstatic.com data:; img-src 'self' data: blob: https://cqntvhgsjxaztbjubkvj.supabase.co; connect-src 'self' https://cqntvhgsjxaztbjubkvj.supabase.co; form-action 'self'; frame-src 'none'; upgrade-insecure-requests">
-  <meta name="description" content="Davi Vera, especialista em lançamentos e financiamento MCMV em Cascavel, Paraná. Encontre seu próximo imóvel.">
-  <meta property="og:title" content="Davi Vera | Imóveis em Cascavel">
-  <meta property="og:description" content="Especialista em Lançamentos e Financiamento MCMV em Cascavel.">
+  <!-- Without frame-ancestors another site could frame the page and overlay fake buttons
+       (clickjacking). GitHub Pages only lets us send it through <meta>. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://api.fontshare.com https://fonts.googleapis.com; font-src 'self' https://api.fontshare.com https://*.fontshare.com https://fonts.gstatic.com data:; img-src 'self' data: blob: https://cqntvhgsjxaztbjubkvj.supabase.co; connect-src 'self' https://cqntvhgsjxaztbjubkvj.supabase.co; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; upgrade-insecure-requests">
+  <meta name="description" content="Davi Vera, corretor de imóveis em Cascavel, Paraná. Lançamentos, programa Casa Fácil Cohapar, lotes e imóveis prontos com curadoria e atendimento próximo.">
+  <meta property="og:title" content="Davi Vera · Imóveis em Cascavel">
+  <meta property="og:description" content="Lançamentos, Casa Fácil Cohapar, lotes e imóveis prontos em Cascavel, PR.">
   <meta property="og:type" content="website">
-  <title>Davi Vera | Imóveis em Cascavel</title>
+  <meta property="og:image" content="assets/showcase/di-napoli-piscina.jpg">
+  <title>Davi Vera · Imóveis em Cascavel</title>
   <link rel="preconnect" href="https://api.fontshare.com">
-  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700,800,900&display=swap" rel="stylesheet">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@14..144,300..700&family=Poppins:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=36">
-  <script src="config.js?v=9"></script>
-  <script src="script.js?v=32" defer></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=60">
+  <script src="config.js?v=11"></script>
+  <script src="script.js?v=50" defer></script>
 </head>
-<body>
-  <div class="page-shell">
-    <header class="topbar"><a class="brand-logo" href="#inicio" aria-label="Davi Vera, início"><img class="brand-mark" src="assets/logo-dv-animado.svg?v=2" data-light-src="assets/logo-dv-animado.svg?v=2" data-dark-src="assets/logo-dv-animado.svg?v=2" alt="Logo Davi Vera" width="44" height="44"></a><button class="theme-toggle" id="theme-toggle" aria-label="Ativar tema escuro" title="Ativar tema escuro"><span aria-hidden="true">☾</span></button></header>
-    <main>
-      <section class="profile" id="inicio" aria-labelledby="profile-name">
-        <button class="avatar" id="avatar" type="button" aria-label="Saiba um pouco sobre Davi Vera"><img src="assets/davi-vera.jpg" alt="Davi Vera" fetchpriority="high"></button>
-        <h1 id="profile-name" aria-label="Davi Vera"><img class="profile-wordmark" src="assets/davi-vera-dourado-animado.svg" alt="" width="1370" height="282"></h1>
-        <div class="social-actions" aria-label="Redes sociais">
-          <a class="social-icon" id="whatsapp-link" href="#" aria-label="WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.9L.2 24l6.5-1.7a11.8 11.8 0 0 0 5.4 1.3h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.1-1.2-6.1-3.5-8.3ZM12.1 21.6c-1.7 0-3.4-.5-4.8-1.3l-.4-.2-3.9 1 1-3.8-.2-.4a9.8 9.8 0 0 1-1.5-5.2c0-5.4 4.4-9.8 9.8-9.8 2.6 0 5.1 1 6.9 2.9a9.7 9.7 0 0 1 2.9 6.9c0 5.5-4.4 9.9-9.8 9.9Zm5.4-7.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.2-.2.3-.8.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.4.1-.6l.4-.5.3-.5c.1-.2 0-.4 0-.5 0-.1-.7-1.6-1-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.8 1.1 3c.1.2 2 3.1 4.8 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.6-.1 1.7-.7 1.9-1.3.2-.7.2-1.2.2-1.3-.1-.2-.3-.3-.5-.4Z"/></svg></a>
-          <a class="social-icon" id="instagram-link" href="#" aria-label="Instagram"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 2h9.6A5.2 5.2 0 0 1 22 7.2v9.6a5.2 5.2 0 0 1-5.2 5.2H7.2A5.2 5.2 0 0 1 2 16.8V7.2A5.2 5.2 0 0 1 7.2 2Zm0 2A3.2 3.2 0 0 0 4 7.2v9.6A3.2 3.2 0 0 0 7.2 20h9.6a3.2 3.2 0 0 0 3.2-3.2V7.2A3.2 3.2 0 0 0 16.8 4H7.2Zm10.1 1.5a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg></a>
+<body class="ds-dark">
+  <a class="skip-link" href="#imoveis">Ir para os imóveis</a>
+
+  <!-- ============ Topo ============ -->
+  <header class="site-header" id="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#inicio" aria-label="Davi Vera, início">
+        <img class="brand-mark" src="assets/logo-dv.png" alt="" width="42" height="42">
+        <span class="brand-text"><strong>Davi Vera</strong><small>CRECI F-51897 · Cascavel</small></span>
+      </a>
+      <nav class="primary-nav" id="primary-nav" aria-label="Navegação principal">
+        <a href="#imoveis" data-nav="imoveis"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 10.6 12 3.8l8.5 6.8V20a1 1 0 0 1-1 1h-5v-6h-5v6h-5a1 1 0 0 1-1-1Z"/></svg>Imóveis</a>
+        <a href="#credito" data-nav="credito"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m5 10V5m5 14v-7m5 7V8"/></svg>Crédito</a>
+        <a href="#sobre" data-nav="sobre"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.4"/><path d="M4.8 20c.8-3.4 3.7-5.2 7.2-5.2s6.4 1.8 7.2 5.2"/></svg>Sobre</a>
+        <a href="#contato" data-nav="contato"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.8-.9L3 21l1.9-5.1A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5Z"/></svg>Contato</a>
+      </nav>
+      <div class="header-actions">
+        <button class="icon-button" id="theme-toggle" type="button" aria-label="Ativar tema claro" title="Ativar tema claro">
+          <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.4 14.6A8.6 8.6 0 0 1 9.4 3.6a8.6 8.6 0 1 0 11 11Z"/></svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.4v2.2M12 19.4v2.2M2.4 12h2.2M19.4 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></svg>
+        </button>
+        <a class="button button-primary header-cta" id="whatsapp-link" href="#">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.9L.2 24l6.5-1.7a11.8 11.8 0 0 0 5.4 1.3h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.1-1.2-6.1-3.5-8.3ZM12.1 21.6c-1.7 0-3.4-.5-4.8-1.3l-.4-.2-3.9 1 1-3.8-.2-.4a9.8 9.8 0 0 1-1.5-5.2c0-5.4 4.4-9.8 9.8-9.8 2.6 0 5.1 1 6.9 2.9a9.7 9.7 0 0 1 2.9 6.9c0 5.5-4.4 9.9-9.8 9.9Zm5.4-7.4c-.3-.1-1.7-.8-2-.9-.3-.1-.5-.1-.7.2-.2.3-.8.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.4.1-.6l.4-.5.3-.5c.1-.2 0-.4 0-.5 0-.1-.7-1.6-1-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.8 1.1 3c.1.2 2 3.1 4.8 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.6-.1 1.7-.7 1.9-1.3.2-.7.2-1.2.2-1.3-.1-.2-.3-.3-.5-.4Z"/></svg>
+          <span>Falar no WhatsApp</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main id="inicio">
+    <!-- ============ Hero / Bento dashboard ============ -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="container hero-grid">
+        <article class="hero-card hero-card-main">
+          <div class="hero-media" aria-hidden="true">
+            <img src="assets/showcase/di-napoli-piscina.jpg" alt="" width="1600" height="1200" fetchpriority="high">
+          </div>
+          <div class="hero-scrim" aria-hidden="true"></div>
+          <div class="hero-body">
+            <span class="hero-chip" aria-hidden="true">
+              <span class="dot-green"></span>
+              Catálogo atualizado
+            </span>
+            <p class="eyebrow eyebrow-light"><span class="eyebrow-dot" aria-hidden="true"></span>Cascavel · Paraná</p>
+            <h1 id="hero-title">Imóveis escolhidos<br><em>com critério.</em></h1>
+            <p class="hero-lead">Lançamentos, Casa Fácil Cohapar, lotes e imóveis prontos em Cascavel — com curadoria, números claros e uma conversa sem pressa.</p>
+            <div class="hero-actions">
+              <a class="button button-primary" href="#imoveis">
+                Ver imóveis disponíveis
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              </a>
+              <a class="button button-ghost" id="simulate-link" href="#">Simular meu crédito</a>
+            </div>
+          </div>
+        </article>
+
+        <aside class="hero-side" aria-label="Resumo do catálogo">
+          <div class="hero-card hero-stat">
+            <span class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 10.6 12 3.8l8.5 6.8V20a1 1 0 0 1-1 1h-5v-6h-5v6h-5a1 1 0 0 1-1-1Z"/></svg></span>
+            <span class="stat-label">Imóveis publicados</span>
+            <strong class="stat-value" data-stat="total">00</strong>
+            <span class="stat-trend"><span class="dot-green" aria-hidden="true"></span>Catálogo atualizado</span>
+          </div>
+          <div class="hero-card hero-stat">
+            <span class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z"/><circle cx="12" cy="10" r="2.6"/></svg></span>
+            <span class="stat-label">Bairros atendidos</span>
+            <strong class="stat-value" data-stat="regions">00</strong>
+            <span class="stat-trend"><span class="dot-green" aria-hidden="true"></span>Cascavel e região</span>
+          </div>
+          <div class="hero-card hero-stat">
+            <span class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 3 2.6 5.6 6.1.8-4.5 4.3 1.1 6-5.3-3-5.3 3 1.1-6L3.3 9.4l6.1-.8Z"/></svg></span>
+            <span class="stat-label">Lançamentos em destaque</span>
+            <strong class="stat-value" data-stat="featured">00</strong>
+            <span class="stat-trend"><span class="dot-orange" aria-hidden="true"></span>Curadoria Davi Vera</span>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ============ Catálogo ============ -->
+    <section class="catalog-section" id="imoveis" aria-labelledby="catalog-title">
+      <div class="container">
+        <header class="section-head">
+          <div class="section-head-copy">
+            <p class="eyebrow">Curadoria Davi Vera</p>
+            <h2 id="catalog-title">Imóveis disponíveis</h2>
+            <p class="section-lead">Filtre por tipo de imóvel e fale comigo sobre qualquer um deles. Os valores são os praticados hoje pelos empreendimentos.</p>
+          </div>
+          <span class="listing-count" id="listing-count">0 imóveis</span>
+        </header>
+
+        <div class="catalog-toolbar">
+          <nav class="category-scroll" id="category-filters" aria-label="Filtrar imóveis por categoria"></nav>
         </div>
-      </section>
-
-      <section class="spotlight" id="spotlight" aria-label="Simulação de crédito">
-        <p class="spotlight-badge">Facilidade</p>
-        <h2>Faça sua Simulação de Crédito</h2>
-        <p class="spotlight-description">Descubra o valor do seu subsídio e as condições que fazem sentido para você.</p>
-        <p class="spotlight-promise"><span aria-hidden="true"></span>Simulação sem compromisso</p>
-        <a class="button button-light" id="simulate-link" href="#">Simular no WhatsApp</a>
-      </section>
-
-      <nav class="category-scroll category-scroll-hero" id="category-filters" aria-label="Filtrar imóveis por categoria"></nav>
-
-      <p class="creci">Cascavel-PR</p>
-
-      <section class="catalog" id="imoveis" aria-labelledby="catalog-title">
-        <div class="section-heading"><div><p class="eyebrow">CURADORIA DAVI VERA</p><h2 id="catalog-title">Imóveis em destaque</h2></div><span class="listing-count" id="listing-count">0 imóveis</span></div>
         <aside class="category-info" id="category-info" aria-live="polite" hidden></aside>
+
         <div class="property-grid" id="property-grid" aria-live="polite"></div>
-        <div class="empty-state" id="empty-state"><span class="empty-icon" aria-hidden="true">⌂</span><h3>Nenhum imóvel disponível nesta seleção.</h3><p>Experimente outra categoria ou ajuste os filtros para ver mais opções.</p></div>
-      </section>
 
-      <section class="contact-grid" aria-label="Atendimento e captação">
-        <article class="contact-card"><p class="eyebrow">PARA QUEM BUSCA</p><h2>Vamos encontrar<br>o lugar certo.</h2><p>Conte o que você procura. Eu ajudo a encontrar as melhores possibilidades para o seu momento.</p><a class="text-link" id="buyer-link" href="#">Conversar sobre um imóvel <span aria-hidden="true">↗</span></a></article>
-        <article class="contact-card contact-card-alt"><p class="eyebrow">PARA PROPRIETÁRIOS</p><h2>Seu imóvel merece<br>ser bem apresentado.</h2><p>Está pensando em vender ou anunciar? Vamos conversar sobre a melhor estratégia.</p><a class="text-link" id="owner-link" href="#">Quero anunciar meu imóvel <span aria-hidden="true">↗</span></a></article>
-      </section>
+        <div class="empty-state" id="empty-state">
+          <span class="empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M3.5 10.6 12 3.8l8.5 6.8V20a1 1 0 0 1-1 1h-5v-6h-5v6h-5a1 1 0 0 1-1-1Z"/></svg>
+          </span>
+          <h3>Nenhum imóvel nesta seleção</h3>
+          <p>Experimente outra categoria ou fale comigo no WhatsApp para ver as opções que ainda não estão publicadas.</p>
+          <a class="button button-ghost" id="empty-state-link" href="#">Falar no WhatsApp</a>
+        </div>
+      </div>
+    </section>
 
-      <section class="admin-section" id="admin"><details><summary>Área de gerenciamento <span>+</span></summary><div class="admin-content"><p id="admin-status" class="admin-status">Configure a integração para cadastrar e publicar imóveis com segurança.</p><button class="button button-secondary" id="admin-login" hidden>Entrar como administrador</button><button class="text-button" id="admin-logout" hidden>Sair</button><p id="property-form-mode" class="property-form-mode" hidden></p><form id="property-form" hidden>
-        <input type="hidden" name="id"><label>Título<input name="title" required maxlength="100"></label><label>Descrição<textarea name="description" rows="4"></textarea></label><div class="form-row"><label>Categoria<select name="category" required></select></label><label>Região<input name="region" required></label><label>Valor total do imóvel (R$)<input name="price" type="number" min="0.01" step="0.01" inputmode="decimal"></label></div><fieldset class="price-options"><legend>Como exibir os valores <span>(opcional)</span></legend><label>Exibição<select name="price_display"><option value="total">Valor total</option><option value="entry">Somente entrada ou sinal</option><option value="both">Valor total e entrada/sinal</option></select></label><div class="price-entry-fields" id="price-entry-fields" hidden><label>Mostrar como<select name="entry_label"><option value="Entrada">Entrada</option><option value="Sinal">Sinal</option></select></label><label>Valor da entrada/sinal (R$)<input name="entry_price" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="Ex.: 25.000,00"></label><label>Parcelamento da entrada/sinal (opcional)<span class="input-suffix"><input name="entry_installments" type="number" min="1" max="600" step="1" inputmode="numeric" placeholder="Ex.: 24"><span>vezes</span></span></label></div></fieldset><div class="form-row"><label>Área (m²)<input name="area" type="number" min="0" step="0.01" inputmode="decimal"></label><label>Quartos<input name="bedrooms" type="number" min="0" step="1"></label><label>Suítes<input name="suites" type="number" min="0" step="1"></label><label>Banheiros<input name="bathrooms" type="number" min="0" step="1"></label><label>Vagas<input name="parking" type="number" min="0" step="1"></label></div><label>Diferenciais (separe por vírgulas)<input name="features"></label><div class="floor-plans-field"><div><strong>Plantas disponíveis <span>(opcional)</span></strong><p class="field-hint">Adicione cada combinação de quartos, suítes e área. Deixe em branco se não precisar informar plantas.</p></div><div id="floor-plans-editor" class="floor-plans-editor"></div><button type="button" class="button button-secondary" id="add-floor-plan">+ Adicionar planta</button></div><label>Condições de pagamento<input name="payment"></label><div class="photo-upload-field"><div><strong>Fotos do imóvel</strong><p>As fotos atuais continuam na galeria. Você pode acrescentar outras a qualquer momento.</p></div><input name="photos" type="file" accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif" multiple hidden><button class="button button-secondary" type="button" id="add-property-photos">+ Adicionar fotos</button><span id="photo-upload-count" class="photo-upload-count">0 fotos adicionadas</span></div><div id="photo-preview" class="photo-preview"></div><div class="form-row"><label>Código automático<input name="code" readonly placeholder="Gerado ao salvar"><small id="property-code-hint" class="field-hint">Escolha uma categoria para ver o formato do código.</small></label><label>Status<select name="status"><option value="draft">Rascunho</option><option value="published">Publicado</option><option value="reserved">Reservado</option><option value="sold">Vendido</option></select></label><label><input name="featured" type="checkbox"> Destacar</label></div><div class="admin-actions"><button class="button button-primary" type="submit">Salvar imóvel</button><button class="button button-secondary" type="button" id="preview-property">Pré-visualizar</button><button class="text-button" id="clear-property-form" type="reset">Limpar</button><button class="button button-secondary" id="cancel-property-edit" type="button" hidden>Cancelar edição</button></div></form><div id="admin-property-tools" class="admin-property-tools" hidden><label for="admin-search">Buscar título ou código</label><input id="admin-search" type="search" placeholder="Ex.: PL-001"><select id="admin-category-filter" aria-label="Filtrar por categoria"><option value="">Todas as categorias</option></select><select id="admin-status-filter" aria-label="Filtrar por status"><option value="">Todos os status</option><option value="draft">Rascunho</option><option value="published">Publicado</option><option value="reserved">Reservado</option><option value="sold">Vendido</option></select></div><p id="admin-order-hint" class="admin-order-hint" aria-live="polite"></p><div id="admin-list" class="admin-list"></div></div></details></section>
-    </main>
-    <footer><a class="brand-logo brand-logo-footer" href="#inicio" aria-label="Davi Vera, início"><img class="brand-mark" src="assets/logo-dv-animado.svg?v=2" data-light-src="assets/logo-dv-animado.svg?v=2" data-dark-src="assets/logo-dv-animado.svg?v=2" alt="Logo Davi Vera" width="40" height="40"></a><p>Imóveis com clareza, cuidado e boas conversas.</p><small>© <span id="year"></span> Davi Vera · CRECI F-51897</small></footer>
-  </div>
-  <dialog id="property-modal" class="property-modal"><button class="modal-close" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button><div id="modal-content"></div></dialog>
-  <dialog id="about-modal" class="about-modal" aria-labelledby="about-title"><button class="modal-close" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button><img src="assets/davi-vera.jpg" alt="Davi Vera" class="about-photo"><p class="eyebrow">PRAZER, SOU O DAVI</p><h2 id="about-title">Seu próximo imóvel começa com uma boa conversa.</h2><p>Sou corretor de imóveis em Cascavel/PR e estou aqui para ajudar você a encontrar um lugar que combine com seus planos, com atendimento próximo e transparente.</p><p class="about-creci">CRECI F-51897 · Cascavel/PR</p><a class="button button-primary" href="#" id="about-contact">Falar comigo</a></dialog>
-  <dialog id="cohapar-info-modal" class="cohapar-info-modal" aria-labelledby="cohapar-info-title"><button class="modal-close" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button><p class="eyebrow">COHAPAR · CASA FÁCIL PARANÁ</p><h2 id="cohapar-info-title">Subsídio de até R$ 20 mil</h2><p class="cohapar-benefit">O benefício pode ajudar a abater o valor da entrada, reduzindo o investimento inicial para conquistar seu primeiro imóvel.</p><h3>Requisitos principais</h3><ul><li>Renda familiar bruta de até 4 salários mínimos.</li><li>Não possuir imóvel próprio.</li><li>Ser aprovado na análise de crédito.</li><li>Não ter sido beneficiado por outro programa de subsídio habitacional, conforme as regras aplicáveis.</li><li>Escolher um imóvel participante e cadastrado no programa.</li></ul><p class="cohapar-notice"><strong>Importante:</strong> o valor do subsídio e a aprovação dependem dos critérios vigentes do programa e da análise de cada beneficiário.</p></dialog>
-  <dialog id="image-modal" class="image-modal"><button class="modal-close" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button><img id="large-image" alt="Foto ampliada do imóvel"><div class="gallery-controls" role="group" aria-label="Navegação das fotos"><button class="gallery-arrow gallery-prev" aria-label="Foto anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5.5-6.5 6.5 6.5 6.5"/></svg></button><span id="gallery-count"></span><button class="gallery-arrow gallery-next" aria-label="Próxima foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></svg></button></div></dialog>
+    <!-- ============ Crédito / Cohapar ============ -->
+    <section class="credit-section" id="credito" aria-labelledby="credit-title">
+      <div class="container credit-grid">
+        <article class="credit-card" id="spotlight">
+          <div class="credit-head">
+            <p class="credit-badge">Simulação de crédito</p>
+            <span class="credit-seal" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 2.6l2.6 2 3.2-.3 1 3.1 2.7 1.8-1.3 3 1.3 3-2.7 1.8-1 3.1-3.2-.3-2.6 2-2.6-2-3.2.3-1-3.1L3.5 15l1.3-3-1.3-3 2.7-1.8 1-3.1 3.2.3Z"/><path d="M8.6 12.2l2.3 2.3 4.5-4.6"/></svg>
+            </span>
+          </div>
+          <h2 id="credit-title">Faça sua simulação de crédito</h2>
+          <p class="credit-description">Descubra o valor do seu subsídio e as condições que fazem sentido para o seu momento.</p>
+          <ul class="credit-points">
+            <li>Sem compromisso</li>
+            <li>Resposta rápida</li>
+            <li>Análise completa</li>
+          </ul>
+          <div class="credit-meter" aria-hidden="true">
+            <div class="credit-meter-head"><span>Processo de simulação</span><strong>3 etapas</strong></div>
+            <div class="meter-track"><span class="meter-fill"></span></div>
+            <ol class="meter-steps"><li>Simulação</li><li>Análise</li><li>Proposta</li></ol>
+          </div>
+          <a class="button button-primary" id="simulate-link-secondary" href="#">Simular no WhatsApp</a>
+        </article>
+
+        <article class="cohapar-card" aria-labelledby="cohapar-title">
+          <p class="eyebrow">Casa Fácil Paraná</p>
+          <h2 id="cohapar-title">Subsídio de até R$ 20 mil</h2>
+          <p>O benefício do programa Cohapar ajuda a abater o valor da entrada do primeiro imóvel.</p>
+          <ul class="cohapar-list">
+            <li>Renda familiar de até 4 salários mínimos</li>
+            <li>Não possuir imóvel próprio</li>
+            <li>Imóvel participante do programa</li>
+          </ul>
+          <button class="text-link cohapar-info-trigger" type="button" aria-haspopup="dialog" aria-controls="cohapar-info-modal">
+            Ver todos os requisitos <span aria-hidden="true">→</span>
+          </button>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============ Sobre ============ -->
+    <section class="about-section" id="sobre" aria-labelledby="about-section-title">
+      <div class="container about-grid">
+        <div class="about-media">
+          <img src="assets/showcase/di-napoli-sala.jpg" alt="Sala de estar decorada de um dos imóveis atendidos" width="1200" height="900" loading="lazy">
+          <figure class="about-portrait">
+            <img src="assets/davi-vera-profile.jpg" alt="Davi Vera" width="120" height="120" loading="lazy">
+            <figcaption>Davi Vera<br><small>CRECI F-51897</small></figcaption>
+          </figure>
+        </div>
+        <div class="about-copy">
+          <p class="eyebrow">Quem atende</p>
+          <h2 id="about-section-title">Seu próximo imóvel começa com uma boa conversa.</h2>
+          <p>Sou corretor de imóveis em Cascavel e trabalho com lançamentos, imóveis enquadrados no Casa Fácil Paraná, lotes e imóveis prontos. Meu papel é traduzir contrato, subsídio e financiamento em algo simples de decidir.</p>
+          <ul class="about-list">
+            <li><strong>Transparência</strong>Valores, taxas e condições explicados antes de qualquer decisão.</li>
+            <li><strong>Acompanhamento</strong>Da visita à assinatura, com a documentação conferida passo a passo.</li>
+            <li><strong>Tempo respeitado</strong>Sem pressa e sem insistência: você decide no seu ritmo.</li>
+          </ul>
+          <div class="about-actions">
+            <a class="button button-primary" id="about-contact" href="#">Falar comigo</a>
+            <a class="button button-ghost" id="instagram-link" href="#">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 2h9.6A5.2 5.2 0 0 1 22 7.2v9.6a5.2 5.2 0 0 1-5.2 5.2H7.2A5.2 5.2 0 0 1 2 16.8V7.2A5.2 5.2 0 0 1 7.2 2Zm0 2A3.2 3.2 0 0 0 4 7.2v9.6A3.2 3.2 0 0 0 7.2 20h9.6a3.2 3.2 0 0 0 3.2-3.2V7.2A3.2 3.2 0 0 0 16.8 4H7.2Zm10.1 1.5a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg>
+              Instagram
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Contato ============ -->
+    <section class="contact-section" id="contato" aria-labelledby="contact-title">
+      <div class="container">
+        <header class="section-head">
+          <div>
+            <p class="eyebrow">Atendimento</p>
+            <h2 id="contact-title">Como posso ajudar hoje?</h2>
+          </div>
+        </header>
+        <div class="contact-grid">
+          <article class="contact-card">
+            <span class="contact-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M3.5 10.6 12 3.8l8.5 6.8V20a1 1 0 0 1-1 1h-5v-6h-5v6h-5a1 1 0 0 1-1-1Z"/></svg>
+            </span>
+            <p class="eyebrow">Para quem busca</p>
+            <h3>Vamos encontrar o lugar certo.</h3>
+            <p>Conte o que você procura. Eu ajudo a filtrar as melhores possibilidades para o seu momento.</p>
+            <a class="text-link" id="buyer-link" href="#">Conversar sobre um imóvel <span aria-hidden="true">→</span></a>
+          </article>
+          <article class="contact-card">
+            <span class="contact-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 20V9l8-5 8 5v11M9 20v-6h6v6"/></svg>
+            </span>
+            <p class="eyebrow">Para proprietários</p>
+            <h3>Seu imóvel merece ser bem apresentado.</h3>
+            <p>Está pensando em vender ou anunciar? Vamos conversar sobre a melhor estratégia.</p>
+            <a class="text-link" id="owner-link" href="#">Quero anunciar meu imóvel <span aria-hidden="true">→</span></a>
+          </article>
+          <article class="contact-card contact-card-dark">
+            <span class="contact-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.8-.9L3 21l1.9-5.1A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5Z"/></svg>
+            </span>
+            <p class="eyebrow">Resposta direta</p>
+            <h3>Prefere conversar agora?</h3>
+            <p>Me chame no WhatsApp e receba as opções certas para o seu perfil, com valores atualizados.</p>
+            <a class="button button-primary" href="#" id="whatsapp-card-link">Abrir o WhatsApp</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Área de gerenciamento ============ -->
+    <section class="admin-section" id="admin" aria-label="Área de gerenciamento">
+      <div class="container">
+        <details>
+          <summary>
+            <span class="summary-label">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
+              Área de gerenciamento
+            </span>
+            <svg class="summary-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </summary>
+          <div class="admin-content">
+            <p id="admin-status" class="admin-status">Configure a integração para cadastrar e publicar imóveis com segurança.</p>
+            <div class="admin-toolbar">
+              <button class="button button-primary" id="admin-login" hidden>Entrar como administrador</button>
+              <button class="text-button" id="admin-logout" hidden>Sair</button>
+            </div>
+            <p id="property-form-mode" class="property-form-mode" hidden></p>
+
+            <form id="property-form" hidden>
+              <input type="hidden" name="id">
+              <label>Título<input name="title" required maxlength="100"></label>
+              <label>Descrição<textarea name="description" rows="4"></textarea></label>
+              <div class="form-row">
+                <label>Categoria<select name="category" required></select></label>
+                <label>Região<input name="region" required></label>
+                <label>Valor total do imóvel (R$)<input name="price" type="number" min="0.01" step="0.01" inputmode="decimal"></label>
+              </div>
+              <fieldset class="price-options">
+                <legend>Como exibir os valores <span>(opcional)</span></legend>
+                <label>Exibição<select name="price_display"><option value="total">Valor total</option><option value="entry">Somente entrada ou sinal</option><option value="both">Valor total e entrada/sinal</option></select></label>
+                <div class="price-entry-fields" id="price-entry-fields" hidden>
+                  <label>Mostrar como<select name="entry_label"><option value="Entrada">Entrada</option><option value="Sinal">Sinal</option></select></label>
+                  <label>Valor da entrada/sinal (R$)<input name="entry_price" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="Ex.: 25000.00"></label>
+                  <label>Parcelamento da entrada/sinal (opcional)<span class="input-suffix"><input name="entry_installments" type="number" min="1" max="600" step="1" inputmode="numeric" placeholder="Ex.: 24"><span>vezes</span></span></label>
+                </div>
+              </fieldset>
+              <div class="form-row">
+                <label>Área (m²)<input name="area" type="number" min="0" step="0.01" inputmode="decimal"></label>
+                <label>Quartos<input name="bedrooms" type="number" min="0" step="1"></label>
+                <label>Suítes<input name="suites" type="number" min="0" step="1"></label>
+                <label>Banheiros<input name="bathrooms" type="number" min="0" step="1"></label>
+                <label>Vagas<input name="parking" type="number" min="0" step="1"></label>
+              </div>
+              <label>Diferenciais (separe por vírgulas)<input name="features"></label>
+              <div class="floor-plans-field">
+                <div><strong>Plantas disponíveis <span>(opcional)</span></strong><p class="field-hint">Adicione cada combinação de quartos, suítes e área. Deixe em branco se não precisar informar plantas.</p></div>
+                <div id="floor-plans-editor" class="floor-plans-editor"></div>
+                <button type="button" class="button button-ghost" id="add-floor-plan">+ Adicionar planta</button>
+              </div>
+              <label>Condições de pagamento<input name="payment"></label>
+              <div class="photo-upload-field">
+                <div><strong>Fotos do imóvel</strong><p>As fotos atuais continuam na galeria. Você pode acrescentar outras a qualquer momento.</p></div>
+                <input name="photos" type="file" accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif" multiple hidden>
+                <button class="button button-ghost" type="button" id="add-property-photos">+ Adicionar fotos</button>
+                <span id="photo-upload-count" class="photo-upload-count">0 fotos adicionadas</span>
+              </div>
+              <div id="photo-preview" class="photo-preview"></div>
+              <div class="form-row">
+                <label>Código automático<input name="code" readonly placeholder="Gerado ao salvar"><small id="property-code-hint" class="field-hint">Escolha uma categoria para ver o formato do código.</small></label>
+                <label>Status<select name="status"><option value="draft">Rascunho</option><option value="published">Publicado</option><option value="reserved">Reservado</option><option value="sold">Vendido</option></select></label>
+                <label class="checkbox-field"><input name="featured" type="checkbox"> Destacar</label>
+              </div>
+              <div class="admin-actions">
+                <button class="button button-primary" type="submit">Salvar imóvel</button>
+                <button class="button button-ghost" type="button" id="preview-property">Pré-visualizar</button>
+                <button class="text-button" id="clear-property-form" type="reset">Limpar</button>
+                <button class="button button-ghost" id="cancel-property-edit" type="button" hidden>Cancelar edição</button>
+              </div>
+            </form>
+
+            <div id="admin-property-tools" class="admin-property-tools" hidden>
+              <label for="admin-search">Buscar título ou código</label>
+              <input id="admin-search" type="search" placeholder="Ex.: PL-001">
+              <select id="admin-category-filter" aria-label="Filtrar por categoria"><option value="">Todas as categorias</option></select>
+              <select id="admin-status-filter" aria-label="Filtrar por status"><option value="">Todos os status</option><option value="draft">Rascunho</option><option value="published">Publicado</option><option value="reserved">Reservado</option><option value="sold">Vendido</option></select>
+            </div>
+            <p id="admin-order-hint" class="admin-order-hint" aria-live="polite"></p>
+            <div id="admin-list" class="admin-list"></div>
+          </div>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ Rodapé ============ -->
+  <footer class="site-footer">
+    <div class="container footer-card">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <img class="brand-mark" src="assets/logo-dv.png" alt="" width="40" height="40">
+          <div><strong>Davi Vera</strong><small>Corretor de imóveis · CRECI F-51897 · Cascavel, PR</small></div>
+        </div>
+        <nav class="footer-nav" aria-label="Navegação do rodapé">
+          <a href="#imoveis">Imóveis</a>
+          <a href="#credito">Crédito</a>
+          <a href="#sobre">Sobre</a>
+          <a href="#contato">Contato</a>
+        </nav>
+        <p class="footer-note">Imóveis com clareza, cuidado e boas conversas.</p>
+      </div>
+      <div class="footer-bottom">
+        <small>© <span id="year"></span> Davi Vera · Todos os direitos reservados</small>
+        <small>Valores e condições sujeitos a alteração pelos empreendimentos.</small>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ============ Diálogos ============ -->
+  <dialog id="property-modal" class="property-modal" aria-label="Detalhes do imóvel">
+    <button class="modal-close" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    <div id="modal-content"></div>
+  </dialog>
+
+  <dialog id="cohapar-info-modal" class="info-modal" aria-labelledby="cohapar-info-title">
+    <button class="modal-close" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    <p class="eyebrow">Cohapar · Casa Fácil Paraná</p>
+    <h2 id="cohapar-info-title">Subsídio de até R$ 20 mil</h2>
+    <p class="info-lead">O benefício pode ajudar a abater o valor da entrada, reduzindo o investimento inicial para conquistar seu primeiro imóvel.</p>
+    <h3>Requisitos principais</h3>
+    <ul>
+      <li>Renda familiar bruta de até 4 salários mínimos.</li>
+      <li>Não possuir imóvel próprio.</li>
+      <li>Ser aprovado na análise de crédito.</li>
+      <li>Não ter sido beneficiado por outro programa de subsídio habitacional, conforme as regras aplicáveis.</li>
+      <li>Escolher um imóvel participante e cadastrado no programa.</li>
+    </ul>
+    <p class="info-notice"><strong>Importante:</strong> o valor do subsídio e a aprovação dependem dos critérios vigentes do programa e da análise de cada beneficiário.</p>
+  </dialog>
+
+  <dialog id="image-modal" class="image-modal" aria-label="Galeria de fotos">
+    <button class="modal-close" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    <img id="large-image" alt="Foto ampliada do imóvel">
+    <div class="gallery-controls" role="group" aria-label="Navegação das fotos">
+      <button class="gallery-arrow gallery-prev" aria-label="Foto anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5.5-6.5 6.5 6.5 6.5"/></svg></button>
+      <span id="gallery-count"></span>
+      <button class="gallery-arrow gallery-next" aria-label="Próxima foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 5.5 6.5 6.5-6.5 6.5"/></svg></button>
+    </div>
+  </dialog>
+
   <dialog id="admin-login-dialog" class="recovery-modal" aria-labelledby="admin-login-title">
     <form id="admin-login-form" class="recovery-form">
+      <p class="eyebrow">Área restrita</p>
       <h2 id="admin-login-title">Acesso do administrador</h2>
       <p>Use o e-mail e a senha da sua conta administradora.</p>
       <label>E-mail<input name="email" type="email" autocomplete="username" required></label>
       <label>Senha<input name="password" type="password" autocomplete="current-password" required></label>
       <p id="admin-login-error" class="admin-status" role="status" aria-live="polite"></p>
-      <div class="admin-actions"><button class="button button-primary" type="submit">Entrar</button><button id="admin-login-cancel" class="button button-secondary" type="button">Cancelar</button></div>
+      <div class="admin-actions">
+        <button class="button button-primary" type="submit">Entrar</button>
+        <button id="admin-login-cancel" class="button button-ghost" type="button">Cancelar</button>
+      </div>
     </form>
   </dialog>
+
   <dialog id="password-reset-dialog" class="recovery-modal" aria-labelledby="password-reset-title">
     <form id="password-reset-form" class="recovery-form">
-      <p class="eyebrow">ACESSO DO ADMINISTRADOR</p>
+      <p class="eyebrow">Acesso do administrador</p>
       <h2 id="password-reset-title">Crie uma nova senha</h2>
       <p>Defina uma senha para entrar na área de gerenciamento dos imóveis.</p>
       <label>Nova senha<input name="password" type="password" autocomplete="new-password" minlength="8" required></label>
@@ -87,7 +410,7 @@
       <button id="password-reset-submit" class="button button-primary" type="submit">Salvar nova senha</button>
     </form>
     <div id="password-reset-success" hidden>
-      <p class="eyebrow">PRONTO</p>
+      <p class="eyebrow">Pronto</p>
       <h2>Senha atualizada</h2>
       <p>Agora feche esta janela e entre como administrador com sua nova senha.</p>
       <button id="password-reset-close" class="button button-primary" type="button">Fechar</button>
