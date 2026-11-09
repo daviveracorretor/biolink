@@ -125,7 +125,11 @@
   const categoryCodePrefixes = { planta:'PL', novos:'PL', lancamentos:'PL', cohapar:'CH', 'minha casa minha vida':'CH', lotes:'LT', terrenos:'LT', prontos:'PR', casas:'PR', 'apartamentos prontos':'PR' };
   const categoryCodePrefix = category => categoryCodePrefixes[categoryKey(category)] || '';
   const canonicalCategory = value => categoryAliases[categoryKey(value)] || (config.categories || []).find(category => categoryKey(category) === categoryKey(value)) || value || '';
-  const propertyFeatures = p => Array.isArray(p?.features) ? p.features : (p?.features?.items || []);
+  const propertyFeatures = p => {
+    if (Array.isArray(p?.features)) return p.features;
+    if (typeof p?.features === 'string') return p.features.split(',').map(value => value.trim()).filter(Boolean);
+    return (p?.features?.items || []);
+  };
   function orderedPropertyPhotos(p) {
     const photos = Array.isArray(p?.photos) ? [...p.photos] : [];
     const coverIndex = photos.findIndex(photo => photo?.path && photo.path === p.cover);
@@ -143,7 +147,9 @@
     row.className = 'floor-plan-row';
     row.innerHTML = '<label>Quartos<input name="plan_bedrooms" type="number" min="0" step="1" inputmode="numeric" placeholder="Ex.: 2"></label><label>Suítes<select name="plan_suites"><option value="">Não informado</option><option value="0">Sem suíte</option><option value="1">1 suíte</option><option value="2">2 suítes</option><option value="3">3 suítes</option></select></label><label>Área (m²)<input name="plan_area" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Ex.: 62,43"></label><button class="text-button remove-floor-plan" type="button" aria-label="Remover planta">Remover</button>';
     row.querySelector('[name="plan_bedrooms"]').value = plan.bedrooms ?? '';
-    row.querySelector('[name="plan_suites"]').value = plan.suites ?? '';
+    // O select usa strings: converte número para não deixar "Não informado" ao editar.
+    const suites = plan.suites ?? '';
+    row.querySelector('[name="plan_suites"]').value = suites === '' || suites == null ? '' : String(suites);
     row.querySelector('[name="plan_area"]').value = plan.area ?? '';
     row.querySelector('.remove-floor-plan').onclick = () => row.remove();
     $('#floor-plans-editor').append(row);
@@ -627,7 +633,10 @@
     preload.src = source;
     if (preload.complete) requestAnimationFrame(commitImage);
   }
-  function authHeaders() { return {'apikey':config.supabase.anonKey, 'Authorization':`Bearer ${state.user?.access_token || config.supabase.anonKey}`, 'Content-Type':'application/json'}; }
+  function authHeaders() {
+    if (!config.supabase?.anonKey) throw new Error('Chave do Supabase não configurada em config.js.');
+    return {'apikey':config.supabase.anonKey, 'Authorization':`Bearer ${state.user?.access_token || config.supabase.anonKey}`, 'Content-Type':'application/json'}; 
+  }
   async function fetchWithTimeout(url, options = {}, timeoutMs = 45000) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -678,7 +687,8 @@
     }
     return response;
   }
-  async function api(path, options={}) {
+  async   function api(path, options={}) {
+    if (!config.supabase?.url) throw new Error('URL do Supabase não configurada em config.js.');
     const url = `${config.supabase.url.replace(/\/$/,'')}/rest/v1/${path}`;
     const jsonOptions = {...options,headers:{'Content-Type':'application/json',...(options.headers || {})}};
     const response = state.user ? await adminFetch(url,jsonOptions) : await fetchWithTimeout(url,{...jsonOptions,headers:{...authHeaders(),...(jsonOptions.headers || {})}},30000);
@@ -731,7 +741,9 @@
       return;
     }
     const dialog = $('#admin-login-dialog');
+    if (!dialog) { setAdminStatus('Tela de login indisponível nesta página.', true); return; }
     const form = $('#admin-login-form');
+    if (!form) { setAdminStatus('Formulário de login indisponível.', true); return; }
     // Enter on the "Entrar" button fired submit twice and asked Supabase for two tokens.
     if (!form.dataset.bound) {
       form.addEventListener('submit', submitAdminLogin);
@@ -741,7 +753,17 @@
     dialog.showModal();
     form.elements.email.focus();
   }
-  async function submitAdminLogin(event) { event.preventDefault(); if (event.currentTarget.dataset.submitting === 'true') return; const form=event.currentTarget; form.dataset.submitting='true'; const email=form.elements.email.value.trim(); const password=form.elements.password.value; const error=$('#admin-login-error'); const submit=form.querySelector('[type="submit"]'); error.textContent='Verificando acesso…'; submit.disabled=true; try { const r=await fetchWithTimeout(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:config.supabase.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email,password})},30000); if(!r.ok)throw Error('Credenciais inválidas ou serviço indisponível.'); const session=await r.json(); if(!config.supabase.adminUserId || session.user?.id?.toLowerCase()!==config.supabase.adminUserId.toLowerCase()){await fetchWithTimeout(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${session.access_token}`}},10000).catch(()=>{});throw Error('Esta conta não está autorizada a administrar o site.');} session.expires_at=session.expires_at || Math.floor(Date.now()/1000)+Number(session.expires_in||3600); state.user=session; form.reset(); $('#admin-login-dialog').close(); $('#admin-login').hidden=true; $('#admin-logout').hidden=false; $('#property-form').hidden=false; await loadCatalog(); }catch(e){error.textContent=e.message;}finally{form.elements.password.value='';submit.disabled=false;form.dataset.submitting='false';} }
+  async function submitAdminLogin(event) {
+    event.preventDefault();
+    if (event.currentTarget.dataset.submitting === 'true') return;
+    const form = event.currentTarget;
+    form.dataset.submitting = 'true';
+    const email = form.elements.email.value.trim();
+    const password = form.elements.password.value;
+    const error = $('#admin-login-error');
+    const submit = form.querySelector('[type="submit"]');
+    if (!email || !password) { error.textContent = 'Informe e-mail e senha.'; form.dataset.submitting = 'false'; return; }
+    error.textContent = 'Verificando acesso…'; submit.disabled = true; try { const r=await fetchWithTimeout(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:config.supabase.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email,password})},30000); if(!r.ok)throw Error('Credenciais inválidas ou serviço indisponível.'); const session=await r.json(); if(!config.supabase.adminUserId || session.user?.id?.toLowerCase()!==config.supabase.adminUserId.toLowerCase()){await fetchWithTimeout(`${config.supabase.url.replace(/\/$/,'')}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabase.anonKey,Authorization:`Bearer ${session.access_token}`}},10000).catch(()=>{});throw Error('Esta conta não está autorizada a administrar o site.');} session.expires_at=session.expires_at || Math.floor(Date.now()/1000)+Number(session.expires_in||3600); state.user=session; form.reset(); $('#admin-login-dialog').close(); $('#admin-login').hidden=true; $('#admin-logout').hidden=false; $('#property-form').hidden=false; await loadCatalog(); }catch(e){error.textContent=e.message;}finally{form.elements.password.value='';submit.disabled=false;form.dataset.submitting='false';} }
   // Property statuses are stored in English in Supabase; the admin list shows them in Portuguese.
   const STATUS_LABELS = { draft: 'Rascunho', published: 'Publicado', reserved: 'Reservado', sold: 'Vendido' };
   function statusLabel(status) { return STATUS_LABELS[status] || status || ''; }
@@ -1010,6 +1032,15 @@
   function syncPriceFields() {
     syncPriceRows();
   }
+  function fillPriceRows(p) { // única definição (a duplicata foi removida)
+    const host = $('#price-rows');
+    if (!host) return;
+    host.replaceChildren();
+    const items = priceItemsOf(p);
+    if (items.length) items.forEach(item => addPriceRow(item));
+    else addPriceRow({ label: 'Valor total', text: '', highlight: true });
+    syncPriceRows();
+  }
   // Snapshots are also kept locally the moment the edit form opens: even if the save path fails or
   // the catalog is reloaded, the previous version is already recoverable.
   function rememberBeforeEditing(property) {
@@ -1019,7 +1050,59 @@
     if (already) return;
     pushHistory({ ...property }, 'Antes de editar');
   }
-  function fillForm(p) { const f=$('#property-form'); f.reset(); f.elements.id.value=p.id; ['title','description','category','region','price','area','bedrooms','suites','bathrooms','parking','payment','status','price_display','entry_price','entry_label','entry_installments','entry_mode','price_highlight','price_highlight_label','price_secondary_label','price_extra_label'].forEach(k=>{if(f.elements[k])f.elements[k].value=p[k]??'';}); fillPriceRows(p); const highlightChoice=f.querySelector(`[name="price_highlight"][value="${['total','entry'].includes(p.price_highlight)?p.price_highlight:'auto'}"]`); if(highlightChoice) highlightChoice.checked=true; f.elements.code.value=p.code??''; f.elements.category.value=canonicalCategory(p.category); f.elements.features.value=propertyFeatures(p).join(', '); propertyFloorPlans(p).forEach(plan=>addFloorPlanRow(plan));f.elements.featured.checked=!!p.featured;state.pendingPhotos=orderedPropertyPhotos(p);state.coverPhoto=state.pendingPhotos[0]?.path||null;syncPriceFields();setPropertyFormMode(true,p.title);updatePropertyCodeHint();renderPhotoPreview();f.scrollIntoView({behavior:'smooth',block:'start'}); }
+  function fillForm(p) {
+    if (!p) return;
+    const f = $('#property-form');
+    if (!f) return;
+    f.reset();
+    // Limpa editores dinâmicos antes de preencher (sem isso, plantas e valores duplicam a cada edição).
+    // clearPendingPhotos também revoga URLs locais para não vazar memória.
+    clearPendingPhotos();
+    $('#floor-plans-editor')?.replaceChildren();
+    $('#price-rows')?.replaceChildren();
+    f.elements.id.value = p.id ?? '';
+    // Campos simples: objeto/fora de texto vira '' para nunca colar "[object Object]"/"null".
+    const strOf = v => (v == null || typeof v === 'object') ? '' : String(v);
+    ['title','description','region','payment','code'].forEach(k => { if (f.elements[k]) f.elements[k].value = strOf(p[k]); });
+    const numOf = v => (v == null || v === '' || typeof v === 'object') ? '' : String(v);
+    ['price','area','bedrooms','suites','bathrooms','parking'].forEach(k => { if (f.elements[k]) f.elements[k].value = numOf(p[k]); });
+    if (f.elements.status) f.elements.status.value = p.status || 'draft';
+    // Evita "colar" a palavra null/undefined em campos de texto quando o banco devolve nulo.
+    [f.elements.features, f.elements.region, f.elements.payment, f.elements.description, f.elements.title].forEach(el => {
+      if (el && (el.value === 'null' || el.value === 'undefined')) el.value = '';
+    });
+    // Descrição: preserva quebras de linha vindas do banco (podem chegar como \n escapado ou real).
+    if (f.elements.description && typeof p.description === 'string') {
+      f.elements.description.value = p.description.replace(/\\n/g, '\n');
+    }
+    // Editor de valores: reconstrói as linhas a partir do imóvel (novo modelo ou legado).
+    fillPriceRows(p);
+    if (f.elements.code) f.elements.code.value = p.code ?? '';
+    // Categoria guardada no mesmo formato do select; se o config mudou, preserva o valor original.
+    if (f.elements.category) {
+      const want = canonicalCategory(p.category) || p.category || '';
+      const has = [...f.elements.category.options].some(o => o.value === want);
+      if (want && !has) {
+        const opt = document.createElement('option');
+        opt.value = want; opt.textContent = want;
+        f.elements.category.append(opt);
+      }
+      f.elements.category.value = want;
+    }
+    if (f.elements.features) f.elements.features.value = propertyFeatures(p).join(', ');
+    const plans = propertyFloorPlans(p);
+    if (plans.length) plans.forEach(plan => addFloorPlanRow(plan));
+    else addFloorPlanRow({});
+    if (f.elements.featured) f.elements.featured.checked = !!p.featured;
+    // Restaura as fotos salvas do imóvel ( state.pendingPhotos foi zerado acima).
+    state.pendingPhotos = orderedPropertyPhotos(p);
+    state.coverPhoto = state.pendingPhotos[0]?.path || null;
+    syncPriceFields();
+    setPropertyFormMode(true, p.title);
+    updatePropertyCodeHint();
+    renderPhotoPreview();
+    f.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
   function movePendingPhoto(from, to) {
     if (to < 0 || to >= state.pendingPhotos.length || from < 0 || from >= state.pendingPhotos.length) return;
     const [photo] = state.pendingPhotos.splice(from, 1);
